@@ -130,6 +130,10 @@ public final class MainActivity extends Activity {
                                     + "button.addEventListener('click',function(){"
                                     + "window.NammaUruCabAndroid.openLocationPicker(item[1],input.value);"
                                     + "});input.parentElement.appendChild(button);"
+                                    + "input.addEventListener('input',function(){"
+                                    + "if(input.dataset.mapSelectionUpdate){delete input.dataset.mapSelectionUpdate;return;}"
+                                    + "delete input.dataset.latitude;delete input.dataset.longitude;"
+                                    + "});"
                                     + "});})()",
                             null
                     );
@@ -263,6 +267,11 @@ public final class MainActivity extends Activity {
                 + JSONObject.quote(inputId)
                 + ");if(input){input.value="
                 + JSONObject.quote(address)
+                + ";input.dataset.latitude="
+                + Double.toString(data.getDoubleExtra("latitude", 0))
+                + ";input.dataset.longitude="
+                + Double.toString(data.getDoubleExtra("longitude", 0))
+                + ";input.dataset.mapSelectionUpdate='true'"
                 + ";input.dispatchEvent(new Event('input',{bubbles:true}));}})()";
         webView.evaluateJavascript(script, null);
     }

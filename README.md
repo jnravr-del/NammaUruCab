@@ -10,9 +10,9 @@ The `Deploy static site to GitHub Pages` workflow publishes the repository root 
 
 ## Android app
 
-The `android` directory contains a native Android app for the public booking site. It provides a Google Maps picker for pickup and drop-off, optional current-location centering (only when requested), phone and WhatsApp handoff, native voucher printing, and an offline retry screen. Ride availability, assignment, and payment are not connected to a server; booking requests are still sent to WhatsApp.
+The `android` directory contains a native Android app for the public booking site. It provides an OpenStreetMap picker for pickup and drop-off, optional current-location centering (only when requested), phone and WhatsApp handoff, native voucher printing, and an offline retry screen. Ride availability, assignment, and payment are not connected to a server; booking requests are still sent to WhatsApp.
 
-The app uses the Google Maps SDK for Android. Create a Google Maps API key in a Google Cloud project with billing enabled and the Maps SDK for Android enabled. Restrict the key to Android app `in.nammaurucab.app` and the signing certificate fingerprints used for the debug and release builds. Add it as the `GOOGLE_MAPS_API_KEY` GitHub Actions secret; do not commit it. Debug builds can compile without this secret but the native map screen will ask for setup.
+The native map uses OpenStreetMap data through osmdroid and does not need a Google Maps API key or billing account. Map tiles require internet access. The app attributes OpenStreetMap; if usage grows beyond a small app, choose a tile provider or host that supports your expected traffic and follow its usage policy.
 
 Open `android` in Android Studio or build a debug APK from a terminal:
 
@@ -33,7 +33,7 @@ For example, create an upload key locally with:
 keytool -genkeypair -v -keystore namma-uru-cab-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias namma-uru-cab-upload
 ```
 
-Add these repository Actions secrets (including `GOOGLE_MAPS_API_KEY` above), or define them in the `google-play-release` environment:
+Add these repository Actions secrets, or define them in the `google-play-release` environment:
 
 - `ANDROID_RELEASE_KEYSTORE_BASE64`: the upload keystore file encoded as a single-line Base64 string.
 - `ANDROID_RELEASE_KEYSTORE_PASSWORD`: the keystore password.

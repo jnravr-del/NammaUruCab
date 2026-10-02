@@ -9,8 +9,6 @@ def releaseSigningEnvironment = [
     keyPassword: System.getenv("ANDROID_KEY_PASSWORD")
 ]
 def releaseSigningConfigured = releaseSigningEnvironment.values().every { it }
-def mapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY") ?:
-        providers.gradleProperty("GOOGLE_MAPS_API_KEY").orElse("YOUR_GOOGLE_MAPS_API_KEY").get()
 
 android {
     namespace "in.nammaurucab.app"
@@ -22,7 +20,6 @@ android {
         targetSdk 35
         versionCode providers.gradleProperty("versionCode").orElse("1").get().toInteger()
         versionName providers.gradleProperty("versionName").orElse("1.0.0").get()
-        manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
     }
 
     compileOptions {
@@ -49,7 +46,7 @@ android {
 }
 
 dependencies {
-    implementation "com.google.android.gms:play-services-maps:19.2.0"
+    implementation "org.osmdroid:osmdroid-android:6.1.20"
 }
 
 tasks.register("validateReleaseSigning") {

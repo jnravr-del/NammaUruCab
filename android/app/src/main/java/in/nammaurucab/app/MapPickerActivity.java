@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
@@ -23,14 +22,13 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.events.MapListener;
+import org.osmdroid.events.ScrollEvent;
+import org.osmdroid.events.ZoomEvent;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,18 +36,20 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class MapPickerActivity extends Activity implements OnMapReadyCallback {
+public final class MapPickerActivity extends Activity {
     private static final int LOCATION_PERMISSION_REQUEST = 42;
     private static final int NAVY = Color.rgb(6, 22, 43);
-    private static final LatLng BENGALURU = new LatLng(12.9716, 77.5946);
+    private static final GeoPoint BENGALURU = new GeoPoint(12.9716, 77.5946);
+    private static final long GEOCODE_DEBOUNCE_MS = 450;
 
     private final ExecutorService geocoderExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable reverseGeocodeAction = this::reverseGeocodeCenter;
+
     private MapView mapView;
-    private GoogleMap googleMap;
-    private Marker pin;
     private EditText searchInput;
     private TextView addressText;
+    private Button confirmButton;
     private String field;
     private String address = "Bengaluru, Karnataka";
     private int geocodeRequest;
@@ -64,15 +64,16 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
             return;
         }
 
+        Configuration.getInstance().load(
+                getApplicationContext(),
+                getSharedPreferences("osmdroid", MODE_PRIVATE)
+        );
+        Configuration.getInstance().setUserAgentValue(getPackageName());
+
         getWindow().setStatusBarColor(NAVY);
         getWindow().setNavigationBarColor(NAVY);
-        if (!hasMapsApiKey()) {
-            setContentView(createMapsSetupView());
-            return;
-        }
         createContent();
-        mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(this);
+        configureMap(savedInstanceState);
 
         String currentValue = getIntent().getStringExtra("current_value");
         if (currentValue != null && !currentValue.trim().isEmpty()) {
@@ -80,64 +81,17 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         }
     }
 
-    private boolean hasMapsApiKey() {
-        try {
-            ApplicationInfo applicationInfo = getPackageManager().getApplicationInfo(
-                    getPackageName(), PackageManager.GET_META_DATA);
-            String apiKey = applicationInfo.metaData == null
-                    ? null
-                    : applicationInfo.metaData.getString("com.google.android.geo.API_KEY");
-            return apiKey != null && !apiKey.trim().isEmpty()
-                    && !apiKey.contains("YOUR_GOOGLE_MAPS_API_KEY");
-        } catch (PackageManager.NameNotFoundException exception) {
-            return false;
-        }
-    }
-
-    private View createMapsSetupView() {
-        LinearLayout container = new LinearLayout(this);
-        container.setGravity(Gravity.CENTER);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(dp(28), dp(28), dp(28), dp(28));
-        container.setBackgroundColor(Color.WHITE);
-
-        TextView title = new TextView(this);
-        title.setText("Google Maps needs setup");
-        title.setTextColor(NAVY);
-        title.setTextSize(22);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setGravity(Gravity.CENTER);
-        container.addView(title);
-
-        TextView message = new TextView(this);
-        message.setText("Add a restricted Google Maps API key to the Android build, then rebuild the app. You can still enter the address manually.");
-        message.setTextColor(Color.DKGRAY);
-        message.setTextSize(15);
-        message.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams messageLayout = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        messageLayout.topMargin = dp(12);
-        container.addView(message, messageLayout);
-
-        Button backButton = new Button(this);
-        backButton.setText("Back to booking");
-        backButton.setOnClickListener(view -> finish());
-        LinearLayout.LayoutParams buttonLayout = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        buttonLayout.topMargin = dp(20);
-        container.addView(backButton, buttonLayout);
-        return container;
-    }
-
     private void createContent() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
 
         mapView = new MapView(this);
+        mapView.setTileSource(TileSourceFactory.MAPNIK);
+        mapView.setMultiTouchControls(true);
+        mapView.setBuiltInZoomControls(false);
+        mapView.setTilesScaledToDpi(true);
+        mapView.setMinZoomLevel(4.0);
+        mapView.setMaxZoomLevel(19.0);
         root.addView(mapView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -174,11 +128,7 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         searchInput.setHint("Search city, area or address");
         searchInput.setTextSize(14);
         searchInput.setPadding(dp(12), 0, dp(8), 0);
-        searchRow.addView(searchInput, new LinearLayout.LayoutParams(
-                0,
-                dp(48),
-                1
-        ));
+        searchRow.addView(searchInput, new LinearLayout.LayoutParams(0, dp(48), 1));
 
         Button searchButton = new Button(this);
         searchButton.setText("Search");
@@ -199,18 +149,14 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         topPanelLayout.setMargins(dp(12), dp(12), dp(12), 0);
         root.addView(topPanel, topPanelLayout);
 
-        View centerPin = new View(this);
-        centerPin.setBackgroundColor(Color.TRANSPARENT);
-        FrameLayout.LayoutParams pinLayout = new FrameLayout.LayoutParams(dp(36), dp(48), Gravity.CENTER);
-        root.addView(centerPin, pinLayout);
-        TextView pinIcon = new TextView(this);
-        pinIcon.setText("●");
-        pinIcon.setTextColor(Color.rgb(208, 150, 40));
-        pinIcon.setTextSize(32);
-        pinIcon.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams iconLayout = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER);
-        iconLayout.bottomMargin = dp(12);
-        root.addView(pinIcon, iconLayout);
+        TextView pin = new TextView(this);
+        pin.setText("●");
+        pin.setTextColor(Color.rgb(208, 150, 40));
+        pin.setTextSize(32);
+        pin.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams pinLayout = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER);
+        pinLayout.bottomMargin = dp(12);
+        root.addView(pin, pinLayout);
 
         Button locationButton = new Button(this);
         locationButton.setText("My location");
@@ -236,7 +182,18 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         addressText.setMaxLines(2);
         bottomPanel.addView(addressText);
 
-        Button confirmButton = new Button(this);
+        TextView attribution = new TextView(this);
+        attribution.setText("Map data © OpenStreetMap contributors");
+        attribution.setTextColor(Color.DKGRAY);
+        attribution.setTextSize(11);
+        LinearLayout.LayoutParams attributionLayout = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        attributionLayout.topMargin = dp(4);
+        bottomPanel.addView(attribution, attributionLayout);
+
+        confirmButton = new Button(this);
         confirmButton.setText("Use this " + ("pickup".equals(field) ? "pickup" : "drop-off"));
         confirmButton.setOnClickListener(view -> confirmLocation());
         LinearLayout.LayoutParams confirmLayout = new LinearLayout.LayoutParams(
@@ -256,27 +213,39 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         setContentView(root);
     }
 
-    @Override
-    public void onMapReady(GoogleMap map) {
-        googleMap = map;
-        googleMap.getUiSettings().setMapToolbarEnabled(false);
-        googleMap.setOnCameraIdleListener(() -> {
-            LatLng target = googleMap.getCameraPosition().target;
-            if (pin == null) {
-                pin = googleMap.addMarker(new MarkerOptions()
-                        .position(target)
-                        .draggable(false)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
-            } else {
-                pin.setPosition(target);
+    private void configureMap(Bundle savedInstanceState) {
+        GeoPoint initialPosition = BENGALURU;
+        String currentValue = getIntent().getStringExtra("current_value");
+        if (currentValue != null && !currentValue.trim().isEmpty()) {
+            String normalized = currentValue.toLowerCase(Locale.ROOT);
+            if (normalized.contains("mysore") || normalized.contains("mysuru")) {
+                initialPosition = new GeoPoint(12.2958, 76.6394);
+            } else if (normalized.contains("airport") || normalized.contains("blr")) {
+                initialPosition = new GeoPoint(13.1986, 77.7066);
             }
-            reverseGeocode(target);
-        });
-
-        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(BENGALURU, 12));
-        if (hasLocationPermission()) {
-            enableLocationLayer();
         }
+        mapView.onCreate(savedInstanceState);
+        mapView.getController().setZoom(13.0);
+        mapView.getController().setCenter(initialPosition);
+        mapView.setMapListener(new MapListener() {
+            @Override
+            public boolean onScroll(ScrollEvent event) {
+                scheduleReverseGeocode();
+                return true;
+            }
+
+            @Override
+            public boolean onZoom(ZoomEvent event) {
+                scheduleReverseGeocode();
+                return true;
+            }
+        });
+        scheduleReverseGeocode();
+    }
+
+    private void scheduleReverseGeocode() {
+        mainHandler.removeCallbacks(reverseGeocodeAction);
+        mainHandler.postDelayed(reverseGeocodeAction, GEOCODE_DEBOUNCE_MS);
     }
 
     private void searchPlace() {
@@ -285,6 +254,7 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
             searchInput.setError("Enter a place or address");
             return;
         }
+        searchInput.clearFocus();
         geocoderExecutor.execute(() -> {
             try {
                 Geocoder geocoder = new Geocoder(this, Locale.getDefault());
@@ -295,11 +265,11 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
                     return;
                 }
                 Address result = results.get(0);
-                LatLng position = new LatLng(result.getLatitude(), result.getLongitude());
+                GeoPoint position = new GeoPoint(result.getLatitude(), result.getLongitude());
                 mainHandler.post(() -> {
-                    if (googleMap != null) {
-                        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 16));
-                    }
+                    mapView.getController().animateTo(position);
+                    mapView.getController().setZoom(17.0);
+                    scheduleReverseGeocode();
                 });
             } catch (IOException | IllegalArgumentException exception) {
                 mainHandler.post(() ->
@@ -308,25 +278,28 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
         });
     }
 
-    private void reverseGeocode(LatLng position) {
+    private void reverseGeocodeCenter() {
+        GeoPoint center = mapView.getMapCenter() instanceof GeoPoint
+                ? (GeoPoint) mapView.getMapCenter()
+                : BENGALURU;
         int request = ++geocodeRequest;
-        address = String.format(Locale.getDefault(), "%.5f, %.5f", position.latitude, position.longitude);
+        address = String.format(Locale.getDefault(), "%.5f, %.5f", center.getLatitude(), center.getLongitude());
         addressText.setText(address);
         geocoderExecutor.execute(() -> {
             String label = null;
             try {
                 Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-                List<Address> results = geocoder.getFromLocation(position.latitude, position.longitude, 1);
+                List<Address> results = geocoder.getFromLocation(center.getLatitude(), center.getLongitude(), 1);
                 if (results != null && !results.isEmpty()) {
                     label = results.get(0).getAddressLine(0);
                 }
             } catch (IOException | IllegalArgumentException ignored) {
-                // Coordinates remain a valid location choice when reverse geocoding is unavailable.
+                // Coordinates remain usable when address lookup is unavailable.
             }
             if (label != null && !label.trim().isEmpty()) {
                 String resolvedLabel = label;
                 mainHandler.post(() -> {
-                    if (request == geocodeRequest) {
+                    if (request == geocodeRequest && !isFinishing()) {
                         address = resolvedLabel;
                         addressText.setText(resolvedLabel);
                     }
@@ -345,7 +318,6 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
             }
             return;
         }
-        enableLocationLayer();
         LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         Location latest = null;
         for (String provider : new String[]{LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER}) {
@@ -358,9 +330,10 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
                 // The permission can be revoked between the check and provider lookup.
             }
         }
-        if (latest != null && googleMap != null) {
-            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                    new LatLng(latest.getLatitude(), latest.getLongitude()), 16));
+        if (latest != null) {
+            mapView.getController().animateTo(new GeoPoint(latest.getLatitude(), latest.getLongitude()));
+            mapView.getController().setZoom(17.0);
+            scheduleReverseGeocode();
         } else {
             Toast.makeText(this, "Current location is not available yet.", Toast.LENGTH_SHORT).show();
         }
@@ -372,30 +345,38 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
                 || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void enableLocationLayer() {
-        if (googleMap == null || !hasLocationPermission()) {
-            return;
-        }
-        try {
-            googleMap.setMyLocationEnabled(true);
-        } catch (SecurityException ignored) {
-            // Location is optional; map selection still works without it.
-        }
-    }
-
     private void confirmLocation() {
-        if (googleMap == null) {
-            return;
-        }
-        LatLng target = googleMap.getCameraPosition().target;
-        reverseGeocode(target);
-        Intent result = new Intent();
-        result.putExtra("field", field);
-        result.putExtra("address", address);
-        result.putExtra("latitude", target.latitude);
-        result.putExtra("longitude", target.longitude);
-        setResult(RESULT_OK, result);
-        finish();
+        GeoPoint center = mapView.getMapCenter() instanceof GeoPoint
+                ? (GeoPoint) mapView.getMapCenter()
+                : BENGALURU;
+        confirmButton.setEnabled(false);
+        addressText.setText("Finding address...");
+        geocoderExecutor.execute(() -> {
+            String selectedAddress = String.format(
+                    Locale.getDefault(), "%.5f, %.5f", center.getLatitude(), center.getLongitude());
+            try {
+                Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                List<Address> results = geocoder.getFromLocation(center.getLatitude(), center.getLongitude(), 1);
+                if (results != null && !results.isEmpty() && results.get(0).getAddressLine(0) != null) {
+                    selectedAddress = results.get(0).getAddressLine(0);
+                }
+            } catch (IOException | IllegalArgumentException ignored) {
+                // Return coordinates if this device has no reverse geocoder.
+            }
+            String finalAddress = selectedAddress;
+            mainHandler.post(() -> {
+                if (isFinishing()) {
+                    return;
+                }
+                Intent result = new Intent();
+                result.putExtra("field", field);
+                result.putExtra("address", finalAddress);
+                result.putExtra("latitude", center.getLatitude());
+                result.putExtra("longitude", center.getLongitude());
+                setResult(RESULT_OK, result);
+                finish();
+            });
+        });
     }
 
     @Override
@@ -411,45 +392,36 @@ public final class MapPickerActivity extends Activity implements OnMapReadyCallb
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        if (mapView != null) mapView.onStart();
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
-        if (mapView != null) mapView.onResume();
+        if (mapView != null) {
+            mapView.onResume();
+        }
     }
 
     @Override
     protected void onPause() {
-        if (mapView != null) mapView.onPause();
+        if (mapView != null) {
+            mapView.onPause();
+        }
         super.onPause();
     }
 
     @Override
-    protected void onStop() {
-        if (mapView != null) mapView.onStop();
-        super.onStop();
-    }
-
-    @Override
     protected void onDestroy() {
+        mainHandler.removeCallbacks(reverseGeocodeAction);
         geocoderExecutor.shutdownNow();
-        if (mapView != null) mapView.onDestroy();
+        if (mapView != null) {
+            mapView.onDetach();
+        }
         super.onDestroy();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (mapView != null) mapView.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        if (mapView != null) mapView.onLowMemory();
+        if (mapView != null) {
+            mapView.onSaveInstanceState(outState);
+        }
     }
 }
