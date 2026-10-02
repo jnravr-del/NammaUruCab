@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Namma Uru Cab | All-in-One Taxi Booking, B2B Agent & Driver Portal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              blue: '#104C8C',
+              bluedark: '#0A2F5C',
+              bluedeep: '#06162B',
+              gold: '#D09628',
+              goldlight: '#F59E0B',
+              golddark: '#B8801C',
+              surface: '#F8FAFC',
+              emerald: '#059669',
+              amber: '#D97706'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .royal-gradient {
+      background: radial-gradient(circle at 15% 20%, rgba(208, 150, 40, 0.15) 0%, transparent 45%),
+                  linear-gradient(135deg, #06162B 0%, #0A2F5C 55%, #104C8C 100%);
+    }
+    .gold-gradient {
+      background: linear-gradient(135deg, #D09628 0%, #F59E0B 100%);
+    }
+    .grid-pattern {
+      background-image: radial-gradient(rgba(208, 150, 40, 0.15) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .portal-tab.active {
+      background-color: #104C8C;
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(16, 76, 140, 0.25);
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printableVoucherArea, #printableVoucherArea * {
+        visibility: visible;
+      }
+      #printableVoucherArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="bg-brand-surface text-slate-800 font-sans antialiased selection:bg-brand-gold selection:text-slate-950 pb-20 md:pb-0">
+
+  <!-- Top Live Diagnostics & Helpline Bar -->
+  <div class="bg-brand-bluedeep text-slate-300 text-xs py-2 px-4 border-b border-brand-bluedark/80 relative z-50">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[10px] tracking-wide border border-emerald-500/30">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+          INTERACTIVE DEMO
+        </span>
+        <span class="text-slate-300 text-[11px] font-medium hidden sm:inline">
+          Bangalore &bull; Mysore &bull; Airport &bull; Outstation Express
+        </span>
+        <button onclick="runLiveDiagnostics()" class="ml-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-brand-gold/20 hover:bg-brand-gold/30 text-brand-goldlight border border-brand-gold/40 text-[10px] font-extrabold transition-all cursor-pointer">
+          <i data-lucide="play-circle" class="w-3 h-3"></i>
+          <span>Run Demo Checks</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-4 text-[11px] font-medium">
+        <a href="tel:+919994410236" class="hover:text-brand-goldlight transition-colors flex items-center gap-1 font-bold">
+          <i data-lucide="phone-call" class="w-3.5 h-3.5 text-brand-gold"></i> Helpline: +91 99944 10236
+        </a>
+        <a href="https://wa.me/919742921881?text=Hi%20Namma%20Uru%20Cab,%20I%20want%20to%20book%20a%20cab" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors flex items-center gap-1 font-extrabold text-emerald-400">
+          <i data-lucide="message-square" class="w-3.5 h-3.5"></i> WhatsApp: 97429 21881
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live System Diagnostics Drawer (Collapsible) -->
+  <div id="diagnosticsDrawer" class="hidden bg-slate-900 border-b border-brand-gold/30 text-white text-xs px-4 py-4 transition-all">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-brand-gold"></i>
+          <span class="font-display font-bold text-sm tracking-wide text-brand-goldlight">Local Demo Checks</span>
+          <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Local demo checks</span>
+        </div>
+        <button onclick="toggleDiagnosticsDrawer()" class="text-slate-400 hover:text-white text-xs flex items-center gap-1">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i> Close
+        </button>
+      </div>
+      <div id="diagnosticsResults" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 text-[11px]">
+        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          <div class="text-slate-400">1. Customer Fare Engine</div>
+          <div id="testStatusFare" class="font-bold text-slate-400 flex items-center gap-1 mt-1">Not run</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          <div class="text-slate-400">2. WhatsApp Router</div>
+          <div id="testStatusWa" class="font-bold text-slate-400 flex items-center gap-1 mt-1">Not run</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          <div class="text-slate-400">3. B2B Margin Calculator</div>
+          <div id="testStatusB2b" class="font-bold text-slate-400 flex items-center gap-1 mt-1">Not run</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          <div class="text-slate-400">4. Driver KYC Wizard</div>
+          <div id="testStatusDriver" class="font-bold text-slate-400 flex items-center gap-1 mt-1">Not run</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          <div class="text-slate-400">5. White-Label Voucher</div>
+          <div id="testStatusVoucher" class="font-bold text-slate-400 flex items-center gap-1 mt-1">Not run</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Unified Header -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+        
+        <!-- Brand Logo with Fallback Inline SVG -->
+        <a href="#" class="flex items-center gap-3 group">
+          <img 
+            src="Gemini_Generated_Image_z8fcsez8fcsez8fc.png" 
+            alt="Namma Uru Cab Logo" 
+            class="h-14 sm:h-16 w-auto object-contain transition-transform group-hover:scale-102"
+            onerror="this.onerror=null; this.parentElement.innerHTML = getInlineSvgLogo();"
+          />
+          <div class="hidden sm:block border-l border-slate-200 pl-3">
+            <span class="text-xs font-black tracking-wider text-brand-blue uppercase block">Namma Uru Cab</span>
+            <span class="text-[10px] text-brand-golddark font-extrabold tracking-widest uppercase">CITY VIBES, ZERO STRESS</span>
+          </div>
+        </a>
+
+        <!-- Master Portal Switcher Tabs -->
+        <div class="hidden md:flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 shadow-inner">
+          <button onclick="switchPortal('customer')" id="tabNavCustomer" class="portal-tab active px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+            <i data-lucide="car" class="w-3.5 h-3.5"></i>
+            <span>Customer Booking</span>
+          </button>
+          <button onclick="switchPortal('b2b')" id="tabNavB2b" class="portal-tab px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-brand-blue transition-all flex items-center gap-1.5">
+            <i data-lucide="briefcase" class="w-3.5 h-3.5"></i>
+            <span>B2B Agent Portal</span>
+          </button>
+          <button onclick="switchPortal('vendor')" id="tabNavVendor" class="portal-tab px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-brand-blue transition-all flex items-center gap-1.5">
+            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+            <span>Attach Cab / Driver</span>
+          </button>
+        </div>
+
+        <!-- Right Action Trigger -->
+        <div class="flex items-center gap-2.5">
+          <a href="tel:+919994410236" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-300 hover:border-brand-blue text-brand-bluedark font-bold text-xs bg-slate-50 hover:bg-slate-100 transition-all">
+            <i data-lucide="phone" class="w-3.5 h-3.5 text-brand-blue"></i>
+            <span>99944 10236</span>
+          </a>
+          <button onclick="openQuickBookModal()" class="px-4 py-2.5 rounded-xl bg-brand-gold hover:bg-brand-goldlight text-brand-bluedeep font-extrabold text-xs shadow-md shadow-brand-gold/25 active:scale-95 transition-all flex items-center gap-1.5">
+            <i data-lucide="calendar-check" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Instant</span> <span>Booking</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Tab Switcher Strip -->
+      <div class="md:hidden flex items-center justify-between pb-3 pt-1 border-t border-slate-100 gap-1">
+        <button onclick="switchPortal('customer')" id="tabNavCustomerMob" class="flex-1 py-1.5 text-center text-[11px] font-bold rounded-lg bg-brand-blue text-white shadow-sm">
+          Customer
+        </button>
+        <button onclick="switchPortal('b2b')" id="tabNavB2bMob" class="flex-1 py-1.5 text-center text-[11px] font-bold rounded-lg text-slate-600 hover:bg-slate-100">
+          B2B Agent
+        </button>
+        <button onclick="switchPortal('vendor')" id="tabNavVendorMob" class="flex-1 py-1.5 text-center text-[11px] font-bold rounded-lg text-slate-600 hover:bg-slate-100">
+          Attach Cab
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- PORTAL 1: CUSTOMER BOOKING PORTAL (Savaari Style Architecture)           -->
+  <!-- ========================================================================= -->
+  <main id="portalCustomer" class="portal-section">
+    
+    <!-- Hero Banner with Dual Heritage Theme -->
+    <section class="royal-gradient text-white py-12 lg:py-16 relative overflow-hidden">
+      <div class="absolute inset-0 grid-pattern pointer-events-none opacity-40"></div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        
+        <div class="grid lg:grid-cols-12 gap-8 items-center">
+          
+          <div class="lg:col-span-6 text-center lg:text-left">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-brand-goldlight font-extrabold text-xs mb-4 uppercase tracking-wider">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-brand-gold"></i>
+              Bengaluru &bull; Mysuru 10-Lane Expressway Specialists
+            </div>
+            <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+              Reliable Intercity &amp; <br><span class="text-brand-goldlight">Airport Taxi Service</span>
+            </h1>
+            <p class="text-slate-200 text-sm sm:text-base mt-3 max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
+              Book verified chauffeur-driven cabs starting at just <strong>₹11/km</strong>. Transparent fares, zero toll markups, clean AC cars, and 90-minute Mysore rides.
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 mt-6 text-xs text-slate-200">
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> No Cancellation Fees</span>
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> On-Time Guarantee</span>
+              <span class="flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Tolls at Actuals</span>
+            </div>
+          </div>
+
+          <!-- Interactive Savaari-Style Booking Engine Box -->
+          <div class="lg:col-span-6">
+            <div class="bg-white rounded-3xl p-5 sm:p-7 text-slate-900 shadow-2xl border border-slate-200">
+              
+              <!-- Tab Switchers -->
+              <div class="flex items-center border-b border-slate-200 pb-3 gap-1 overflow-x-auto text-xs font-bold text-slate-600">
+                <button onclick="setCustTripType('oneway')" id="tripBtnOneway" class="trip-type-btn py-2 px-3 rounded-xl bg-brand-blue text-white shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> One-Way
+                </button>
+                <button onclick="setCustTripType('round')" id="tripBtnRound" class="trip-type-btn py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center gap-1.5 whitespace-nowrap">
+                  <i data-lucide="repeat" class="w-3.5 h-3.5"></i> Round Trip
+                </button>
+                <button onclick="setCustTripType('hourly')" id="tripBtnHourly" class="trip-type-btn py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center gap-1.5 whitespace-nowrap">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i> Local Hourly
+                </button>
+                <button onclick="setCustTripType('airport')" id="tripBtnAirport" class="trip-type-btn py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center gap-1.5 whitespace-nowrap">
+                  <i data-lucide="plane" class="w-3.5 h-3.5"></i> Airport Transfer
+                </button>
+              </div>
+
+              <!-- Booking Inputs Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4">
+                
+                <div>
+                  <label for="custPickup" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Pickup City / Area</label>
+                  <div class="relative">
+                    <i data-lucide="map-pin" class="w-4 h-4 absolute left-3 top-3 text-brand-blue"></i>
+                    <input type="text" id="custPickup" value="Bangalore (Bengaluru)" required oninput="calculateCustomerFare()"
+                      class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-blue outline-none">
+                  </div>
+                </div>
+
+                <div id="dropContainer">
+                  <label for="custDrop" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Drop Destination</label>
+                  <div class="relative">
+                    <i data-lucide="flag" class="w-4 h-4 absolute left-3 top-3 text-brand-gold"></i>
+                    <input type="text" id="custDrop" value="Mysore (Mysuru)" required oninput="calculateCustomerFare()"
+                      class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-blue outline-none">
+                  </div>
+                </div>
+
+                <!-- Package selector for Hourly (Hidden by default) -->
+                <div id="packageContainer" class="hidden sm:col-span-2">
+                  <label for="custPackage" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Select Hourly Rental Package</label>
+                  <select id="custPackage" onchange="calculateCustomerFare()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900">
+                    <option value="4hr40km">4 Hours / 40 KM - Local City Express</option>
+                    <option value="8hr80km" selected>8 Hours / 80 KM - Full Day Sightseeing</option>
+                    <option value="12hr120km">12 Hours / 120 KM - Extended Business Package</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="custDate" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Pickup Date</label>
+                  <input type="date" id="custDate" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900 outline-none">
+                </div>
+
+                <div>
+                  <label for="custTime" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Pickup Time</label>
+                  <input type="time" id="custTime" value="06:30" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900 outline-none">
+                </div>
+
+              </div>
+
+              <!-- Vehicle Class Selector -->
+              <div class="mt-4">
+                <p class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Choose Vehicle Class</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button type="button" onclick="selectCustVehicle('hatchback')" id="vbtn-hatchback" class="veh-select-btn p-2 rounded-xl border border-slate-200 bg-slate-50 text-left transition-all">
+                    <div class="text-[11px] font-bold text-slate-900">Hatchback</div>
+                    <div class="text-[10px] text-slate-500">₹11/km &bull; 4 Seats</div>
+                  </button>
+                  <button type="button" onclick="selectCustVehicle('sedan')" id="vbtn-sedan" class="veh-select-btn p-2 rounded-xl border-2 border-brand-blue bg-blue-50/60 text-left transition-all">
+                    <div class="text-[11px] font-bold text-brand-blue">Sedan (Dzire)</div>
+                    <div class="text-[10px] text-brand-blue/80">₹13/km &bull; 4 Seats</div>
+                  </button>
+                  <button type="button" onclick="selectCustVehicle('suv')" id="vbtn-suv" class="veh-select-btn p-2 rounded-xl border border-slate-200 bg-slate-50 text-left transition-all">
+                    <div class="text-[11px] font-bold text-slate-900">SUV (Ertiga)</div>
+                    <div class="text-[10px] text-slate-500">₹17/km &bull; 6 Seats</div>
+                  </button>
+                  <button type="button" onclick="selectCustVehicle('crysta')" id="vbtn-crysta" class="veh-select-btn p-2 rounded-xl border border-slate-200 bg-slate-50 text-left transition-all">
+                    <div class="text-[11px] font-bold text-slate-900">Innova Crysta</div>
+                    <div class="text-[10px] text-slate-500">₹21/km &bull; 7 Seats</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Estimated Fare Summary Strip -->
+              <div class="mt-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Estimated Total Fare</span>
+                  <div class="text-xl sm:text-2xl font-black text-brand-blue font-display" id="custFareDisplay">₹2,350</div>
+                  <span class="text-[10px] text-slate-400" id="custFareBreakdown">Includes 150 KM + Driver Beta</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="bookViaWhatsApp()" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 active:scale-95 transition-all flex items-center gap-1.5">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                    <span>Book on WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Popular Routes Grid (Savaari Style) -->
+    <section class="py-12 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-2">
+          <div>
+            <span class="text-xs uppercase font-extrabold tracking-widest text-brand-golddark bg-amber-50 border border-amber-300 px-3 py-1 rounded-full">Fast Corridor</span>
+            <h2 class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">Popular Karnataka Outstation Routes</h2>
+          </div>
+          <span class="text-xs text-slate-500">One-way drops &amp; round trips with instant pickup</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Route 1 -->
+          <div onclick="prefillRoute('Bangalore', 'Mysore', 'oneway')" class="cursor-pointer border border-slate-200 rounded-2xl p-4 hover:border-brand-gold hover:shadow-lg transition-all group bg-slate-50/50">
+            <div class="flex justify-between items-start">
+              <span class="text-[10px] font-bold text-white bg-brand-blue px-2 py-0.5 rounded-full">Expressway 90 Mins</span>
+              <span class="text-xs font-black text-brand-golddark">From ₹1,999</span>
+            </div>
+            <h3 class="font-display font-bold text-slate-900 text-base mt-2 group-hover:text-brand-blue transition-colors">Bangalore &rarr; Mysore</h3>
+            <p class="text-xs text-slate-500 mt-1">145 KM &bull; 10-Lane Expressway &bull; Fastag Enabled</p>
+          </div>
+
+          <!-- Route 2 -->
+          <div onclick="prefillRoute('Bangalore City', 'Kempegowda Airport (BLR)', 'airport')" class="cursor-pointer border border-slate-200 rounded-2xl p-4 hover:border-brand-gold hover:shadow-lg transition-all group bg-slate-50/50">
+            <div class="flex justify-between items-start">
+              <span class="text-[10px] font-bold text-white bg-emerald-600 px-2 py-0.5 rounded-full">24x7 Airport</span>
+              <span class="text-xs font-black text-brand-golddark">From ₹1,199</span>
+            </div>
+            <h3 class="font-display font-bold text-slate-900 text-base mt-2 group-hover:text-brand-blue transition-colors">City &rarr; BLR Airport</h3>
+            <p class="text-xs text-slate-500 mt-1">Doorstep pickup &bull; Zero waiting toll queue</p>
+          </div>
+
+          <!-- Route 3 -->
+          <div onclick="prefillRoute('Bangalore', 'Coorg (Madikeri)', 'round')" class="cursor-pointer border border-slate-200 rounded-2xl p-4 hover:border-brand-gold hover:shadow-lg transition-all group bg-slate-50/50">
+            <div class="flex justify-between items-start">
+              <span class="text-[10px] font-bold text-white bg-purple-700 px-2 py-0.5 rounded-full">Holiday Circuit</span>
+              <span class="text-xs font-black text-brand-golddark">From ₹5,499</span>
+            </div>
+            <h3 class="font-display font-bold text-slate-900 text-base mt-2 group-hover:text-brand-blue transition-colors">Bangalore &rarr; Coorg</h3>
+            <p class="text-xs text-slate-500 mt-1">265 KM &bull; Experienced hill chauffeurs</p>
+          </div>
+
+          <!-- Route 4 -->
+          <div onclick="prefillRoute('Bangalore', 'Ooty', 'round')" class="cursor-pointer border border-slate-200 rounded-2xl p-4 hover:border-brand-gold hover:shadow-lg transition-all group bg-slate-50/50">
+            <div class="flex justify-between items-start">
+              <span class="text-[10px] font-bold text-white bg-slate-800 px-2 py-0.5 rounded-full">Bandipur Forest</span>
+              <span class="text-xs font-black text-brand-golddark">From ₹6,200</span>
+            </div>
+            <h3 class="font-display font-bold text-slate-900 text-base mt-2 group-hover:text-brand-blue transition-colors">Bangalore &rarr; Ooty</h3>
+            <p class="text-xs text-slate-500 mt-1">280 KM &bull; Nilgiris 36 hairpin bend specialists</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transparent Fleet Tariff Table -->
+    <section class="py-12 bg-brand-surface border-t border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class="text-xs font-extrabold uppercase tracking-widest text-brand-blue bg-blue-50 border border-blue-200 px-3.5 py-1 rounded-full">No Hidden Charges</span>
+          <h2 class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">Transparent Standard Fleet Tariffs</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">Clean, commercial yellow-board vehicles with experienced drivers.</p>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase">
+              <tr>
+                <th class="py-3.5 px-4">Vehicle Model</th>
+                <th class="py-3.5 px-4">Capacity</th>
+                <th class="py-3.5 px-4">Outstation Rate</th>
+                <th class="py-3.5 px-4">Driver Allowance</th>
+                <th class="py-3.5 px-4">Ideal For</th>
+                <th class="py-3.5 px-4 text-right">Instant Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+              <tr class="hover:bg-slate-50/80">
+                <td class="py-3.5 px-4 font-bold text-slate-900">Hatchback (WagonR / Swift)</td>
+                <td class="py-3.5 px-4">4 Passengers</td>
+                <td class="py-3.5 px-4 font-bold text-brand-blue">₹11 / KM</td>
+                <td class="py-3.5 px-4">₹350 / Day</td>
+                <td class="py-3.5 px-4 text-slate-500">Solo travelers, couples &amp; budget hops</td>
+                <td class="py-3.5 px-4 text-right">
+                  <button onclick="selectCustVehicle('hatchback'); window.scrollTo({top: 0, behavior: 'smooth'});" class="text-xs font-bold text-brand-blue hover:underline">Select &uarr;</button>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-50/80 bg-blue-50/20">
+                <td class="py-3.5 px-4 font-bold text-slate-900">Prime Sedan (Dzire / Etios)</td>
+                <td class="py-3.5 px-4">4 Passengers + Boot</td>
+                <td class="py-3.5 px-4 font-bold text-brand-blue">₹13 / KM</td>
+                <td class="py-3.5 px-4">₹400 / Day</td>
+                <td class="py-3.5 px-4 text-slate-500">Most popular for Bangalore-Mysore expressway</td>
+                <td class="py-3.5 px-4 text-right">
+                  <button onclick="selectCustVehicle('sedan'); window.scrollTo({top: 0, behavior: 'smooth'});" class="text-xs font-bold text-brand-blue hover:underline">Select &uarr;</button>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-50/80">
+                <td class="py-3.5 px-4 font-bold text-slate-900">Prime SUV (Ertiga / XL6)</td>
+                <td class="py-3.5 px-4">6 Passengers</td>
+                <td class="py-3.5 px-4 font-bold text-brand-blue">₹17 / KM</td>
+                <td class="py-3.5 px-4">₹450 / Day</td>
+                <td class="py-3.5 px-4 text-slate-500">Families, weekend trips to Coorg &amp; Ooty</td>
+                <td class="py-3.5 px-4 text-right">
+                  <button onclick="selectCustVehicle('suv'); window.scrollTo({top: 0, behavior: 'smooth'});" class="text-xs font-bold text-brand-blue hover:underline">Select &uarr;</button>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-50/80">
+                <td class="py-3.5 px-4 font-bold text-slate-900">Innova Crysta Luxury</td>
+                <td class="py-3.5 px-4">7 Passengers</td>
+                <td class="py-3.5 px-4 font-bold text-brand-blue">₹21 / KM</td>
+                <td class="py-3.5 px-4">₹500 / Day</td>
+                <td class="py-3.5 px-4 text-slate-500">VIP corporate executives &amp; luxury comfort</td>
+                <td class="py-3.5 px-4 text-right">
+                  <button onclick="selectCustVehicle('crysta'); window.scrollTo({top: 0, behavior: 'smooth'});" class="text-xs font-bold text-brand-blue hover:underline">Select &uarr;</button>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-50/80">
+                <td class="py-3.5 px-4 font-bold text-slate-900">Tempo Traveller (12/16 Seater)</td>
+                <td class="py-3.5 px-4">12 to 16 Passengers</td>
+                <td class="py-3.5 px-4 font-bold text-brand-blue">₹28 / KM</td>
+                <td class="py-3.5 px-4">₹600 / Day</td>
+                <td class="py-3.5 px-4 text-slate-500">Weddings, large tourist &amp; temple tours</td>
+                <td class="py-3.5 px-4 text-right">
+                  <a href="https://wa.me/919742921881?text=Hi%20Namma%20Uru%20Cab,%20I%20need%20Tempo%20Traveller%20quotation" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-emerald-600 hover:underline">Inquire</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- PORTAL 2: B2B TRAVEL AGENT & CORPORATE PORTAL (b2bcab.in Architecture)   -->
+  <!-- ========================================================================= -->
+  <section id="portalB2b" class="portal-section hidden py-10 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- B2B Intro Header -->
+      <div class="bg-gradient-to-r from-brand-bluedeep via-brand-bluedark to-brand-blue text-white rounded-3xl p-6 sm:p-10 mb-8 shadow-xl">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-gold/20 text-brand-goldlight text-xs font-black border border-brand-gold/30 uppercase tracking-widest">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Authorized B2B Partner Portal
+            </div>
+            <h2 class="font-display text-2xl sm:text-4xl font-extrabold mt-2">Travel Agent &amp; Corporate Wholesale Desk</h2>
+            <p class="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
+              Wholesale net tariffs, guaranteed white-label client vouchers (your branding, zero Namma Uru Cab traces), and instant agent commissions.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="openAgentRegisterModal()" class="px-5 py-3 rounded-xl bg-brand-gold hover:bg-brand-goldlight text-brand-bluedeep font-black text-xs shadow-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+              <i data-lucide="user-plus" class="w-4 h-4"></i> Free Agent Sign-up
+            </button>
+            <a href="https://wa.me/919742921881?text=Hi%20Namma%20Uru%20Cab,%20I%20am%20a%20travel%20agent%20seeking%20B2B%20rates" target="_blank" rel="noopener noreferrer" class="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 whitespace-nowrap">
+              <i data-lucide="message-square" class="w-4 h-4"></i> B2B WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live B2B Margin Calculator + Live White-Label Voucher Preview -->
+      <div class="grid lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- B2B Calculator Column -->
+        <div class="lg:col-span-6 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+          <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+            <div>
+              <h3 class="font-display font-extrabold text-slate-900 text-base">B2B Margin &amp; Profit Engine</h3>
+              <p class="text-xs text-slate-500">Calculate net wholesale cost vs retail margin</p>
+            </div>
+            <span class="text-[10px] font-mono bg-blue-50 text-brand-blue px-2.5 py-1 rounded-full font-bold">100% White-Label</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="b2bVehCat" class="block text-xs font-bold text-slate-600 mb-1">Vehicle Category</label>
+              <select id="b2bVehCat" onchange="calculateB2bMargin()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900">
+                <option value="sedan" selected>Sedan (Dzire / Etios) - Net ₹13/km</option>
+                <option value="hatchback">Hatchback (WagonR) - Net ₹11/km</option>
+                <option value="suv">SUV (Ertiga) - Net ₹17/km</option>
+                <option value="crysta">Innova Crysta - Net ₹21/km</option>
+              </select>
+            </div>
+            <div>
+              <label for="b2bTripType" class="block text-xs font-bold text-slate-600 mb-1">Route Trip Type</label>
+              <select id="b2bTripType" onchange="calculateB2bMargin()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900">
+                <option value="150" selected>BLR &harr; MYS (150 KM)</option>
+                <option value="300">BLR &harr; MYS Round (300 KM)</option>
+                <option value="550">BLR &harr; Coorg Circuit (550 KM)</option>
+                <option value="600">BLR &harr; Ooty Hills (600 KM)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center text-xs font-bold text-slate-700 mb-1">
+              <span>Your Client Markup (Profit Margin):</span>
+              <span class="text-emerald-700 font-extrabold text-sm" id="b2bMarkupDisplay">+₹500 Margin</span>
+            </div>
+            <input type="range" id="b2bMarkupSlider" min="200" max="2500" value="500" step="50" oninput="calculateB2bMargin()"
+              class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600">
+          </div>
+
+          <!-- Calculation Comparison -->
+          <div class="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Agent Net Cost</div>
+              <div class="text-base font-black text-slate-900 font-display mt-0.5" id="b2bNetCost">₹2,350</div>
+              <div class="text-[10px] text-slate-400">Paid to Namma Uru</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase font-bold text-emerald-600">Your Net Margin</div>
+              <div class="text-base font-black text-emerald-600 font-display mt-0.5" id="b2bProfit">₹500</div>
+              <div class="text-[10px] text-emerald-700 font-bold">Your Instant Profit</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase font-bold text-brand-blue">Client Invoice</div>
+              <div class="text-base font-black text-brand-blue font-display mt-0.5" id="b2bClientPrice">₹2,850</div>
+              <div class="text-[10px] text-slate-400">Total Billed to Client</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="updateWhiteLabelVoucherPreview()" class="flex-1 py-3 rounded-xl bg-brand-blue hover:bg-brand-bluedark text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5">
+              <i data-lucide="file-text" class="w-4 h-4"></i> Generate White-Label Voucher
+            </button>
+            <button onclick="dispatchB2bOrder()" class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1.5">
+              <i data-lucide="send" class="w-4 h-4"></i> Dispatch via WA
+            </button>
+          </div>
+        </div>
+
+        <!-- Live White-Label Voucher Preview Box -->
+        <div class="lg:col-span-6">
+          <div class="bg-white rounded-3xl border border-slate-200 shadow-lg p-5 sm:p-7 relative">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+              <div class="flex items-center gap-2">
+                <i data-lucide="eye" class="w-4 h-4 text-brand-gold"></i>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Client Voucher Preview</span>
+              </div>
+              <button onclick="window.print()" class="text-xs font-bold text-brand-blue hover:underline flex items-center gap-1">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print / PDF
+              </button>
+            </div>
+
+            <!-- The Printable Unbranded Voucher -->
+            <div id="printableVoucherArea" class="mt-4 p-5 rounded-2xl border border-dashed border-slate-300 bg-white text-xs text-slate-800 space-y-4">
+              <div class="flex justify-between items-start border-b border-slate-200 pb-3">
+                <div>
+                  <h4 class="font-display font-black text-sm uppercase text-slate-900" id="voucherAgencyTitle">OFFICIAL TRAVEL ITINERARY VOUCHER</h4>
+                  <p class="text-[10px] text-slate-500">Booking Reference: <span class="font-mono font-bold text-slate-800" id="voucherRef">NUC-B2B-8910</span></p>
+                </div>
+                <div class="text-right">
+                  <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider">ESTIMATE ONLY</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 text-[11px]">
+                <div>
+                  <span class="text-slate-500 block">Passenger / Guest:</span>
+                  <strong class="text-slate-900" id="voucherGuestName">Guest Traveler (B2B Booking)</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Vehicle Assigned:</span>
+                  <strong class="text-slate-900" id="voucherVeh">Sedan (Dzire / Etios) - AC Commercial</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Pickup Route:</span>
+                  <strong class="text-slate-900" id="voucherRoute">Bangalore &rarr; Mysore Corridor</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Total Billed to Guest:</span>
+                  <strong class="text-brand-blue font-bold text-sm" id="voucherAmount">₹2,850</strong>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-100 text-[10px] text-slate-500 leading-relaxed">
+                * Note for Passenger: Tolls, interstate permits, and parking are payable at actuals unless specified. Driver details will arrive via SMS 2 hours prior to journey.
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- PORTAL 3: DRIVER & VENDOR REGISTRATION PORTAL (vendor.savaari Style)      -->
+  <!-- ========================================================================= -->
+  <section id="portalVendor" class="portal-section hidden py-10 bg-brand-surface">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      
+      <div class="text-center mb-8">
+        <span class="text-brand-blue text-xs uppercase font-extrabold tracking-widest bg-blue-50 border border-blue-200 px-3.5 py-1 rounded-full">
+          vendor.savaari Onboarding Framework
+        </span>
+        <h2 class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+          Driver &amp; Fleet Vendor Registration
+        </h2>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1">Enroll your commercial yellow-board cab in 4 simple steps.</p>
+      </div>
+
+      <!-- Partner Type Switcher -->
+      <div class="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm max-w-md mx-auto mb-6 flex gap-2">
+        <button type="button" id="vendorPartnerSingle" onclick="setVendorCategory('single')"
+          class="flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-brand-blue text-white shadow-sm transition-all">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-brand-gold"></i>
+          <span>Driver cum Owner (1 Cab)</span>
+        </button>
+        <button type="button" id="vendorPartnerFleet" onclick="setVendorCategory('fleet')"
+          class="flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100 transition-all">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+          <span>Fleet / Travel Vendor</span>
+        </button>
+      </div>
+
+      <!-- 4-Step Wizard Container -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-xl p-5 sm:p-8">
+        
+        <!-- Step Indicators -->
+        <div class="mb-8">
+          <div class="flex items-center justify-between max-w-xl mx-auto relative">
+            <div class="absolute top-1/2 left-0 right-0 h-1 bg-slate-200 -translate-y-1/2 z-0"></div>
+            <div id="vStepProgressBar" class="absolute top-1/2 left-0 h-1 bg-brand-blue -translate-y-1/2 z-0 transition-all duration-300 w-0"></div>
+
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="vDot1" class="w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center text-xs font-bold shadow-md">1</div>
+              <span class="text-[11px] font-bold mt-1 text-brand-blue">Personal</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="vDot2" class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">2</div>
+              <span class="text-[11px] font-medium mt-1 text-slate-500">Vehicle</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="vDot3" class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">3</div>
+              <span class="text-[11px] font-medium mt-1 text-slate-500">Documents</span>
+            </div>
+            <div class="relative z-10 flex flex-col items-center">
+              <div id="vDot4" class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">4</div>
+              <span class="text-[11px] font-medium mt-1 text-slate-500">Payout</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wizard Forms -->
+        <form id="unifiedVendorForm" onsubmit="event.preventDefault(); nextVendorStep();">
+          
+          <!-- STEP 1: Personal Profile & OTP Demo -->
+          <div id="vStep1" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="vDriverName" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Full Name (As on Driving Licence) *</label>
+                <input type="text" id="vDriverName" required autocomplete="name" placeholder="Enter your full name"
+                  class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-blue outline-none">
+              </div>
+              <div>
+                <label for="vDriverCity" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Base City *</label>
+                <select id="vDriverCity" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none">
+                  <option value="Bengaluru" selected>Bengaluru (Central / South / North)</option>
+                  <option value="Mysuru">Mysuru (Mysore)</option>
+                  <option value="Mandya">Mandya / Maddur</option>
+                  <option value="KIAL-Airport">Kempegowda Airport Hub</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="vDriverPhone" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Phone Number *</label>
+                <div class="flex gap-2">
+                  <input type="tel" id="vDriverPhone" required autocomplete="tel" inputmode="tel" pattern="[0-9+() -]{10,16}" placeholder="10-digit mobile number"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:bg-white outline-none">
+                  <button type="button" id="vOtpBtn" onclick="simulateVendorOtp()" class="px-3 py-2 rounded-xl bg-brand-blue text-white font-bold text-xs whitespace-nowrap">
+                    Demo OTP
+                  </button>
+                </div>
+                <div id="vOtpDone" class="text-[11px] text-emerald-600 font-bold mt-1 hidden"><i data-lucide="check" class="w-3 h-3 inline"></i> Mobile Verified</div>
+              </div>
+              <div>
+                <label for="vDriverWa" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">WhatsApp Dispatch Number *</label>
+                <input type="tel" id="vDriverWa" required autocomplete="tel" inputmode="tel" pattern="[0-9+() -]{10,16}" placeholder="WhatsApp mobile number"
+                  class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:bg-white outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2: Commercial Vehicle & Yellow Board -->
+          <div id="vStep2" class="hidden space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="vVehType" class="block text-xs font-bold text-slate-600 mb-1">Vehicle Category *</label>
+                <select id="vVehType" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900">
+                  <option value="Sedan" selected>Sedan (Dzire / Etios)</option>
+                  <option value="Hatchback">Hatchback (WagonR / Swift)</option>
+                  <option value="SUV">SUV (Ertiga / XL6)</option>
+                  <option value="Crysta">Innova Crysta</option>
+                </select>
+              </div>
+              <div>
+                <label for="vVehModel" class="block text-xs font-bold text-slate-600 mb-1">Model &amp; Year *</label>
+                <input type="text" id="vVehModel" required placeholder="e.g. Maruti Dzire 2023" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900">
+              </div>
+              <div>
+                <label for="vVehPlate" class="block text-xs font-bold text-slate-600 mb-1">Yellow Board Plate No. *</label>
+                <input type="text" id="vVehPlate" required placeholder="e.g. KA-01-AA-1234" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-900 uppercase font-mono">
+              </div>
+            </div>
+            <div class="flex gap-4 pt-2 text-xs">
+              <label class="flex items-center gap-1.5 font-medium"><input type="checkbox" checked class="rounded text-brand-blue"> AC Working</label>
+              <label class="flex items-center gap-1.5 font-medium"><input type="checkbox" checked class="rounded text-brand-blue"> Fastag Active</label>
+              <label class="flex items-center gap-1.5 font-medium"><input type="checkbox" checked class="rounded text-brand-blue"> Commercial Tourist Permit</label>
+            </div>
+          </div>
+
+          <!-- STEP 3: KYC Checklist & Documents -->
+          <div id="vStep3" class="hidden space-y-4">
+            <p class="text-xs text-slate-600">These documents are required for manual verification. Attach copies in WhatsApp after submitting:</p>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <span class="font-bold block text-slate-800">1. Commercial DL</span>
+                <span class="text-[10px] text-slate-500 font-bold">Required for verification</span>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <span class="font-bold block text-slate-800">2. RC Card (Yellow Board)</span>
+                <span class="text-[10px] text-slate-500 font-bold">Required for verification</span>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <span class="font-bold block text-slate-800">3. Taxi Insurance</span>
+                <span class="text-[10px] text-slate-500 font-bold">Required for verification</span>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <span class="font-bold block text-slate-800">4. Fitness / Permit</span>
+                <span class="text-[10px] text-slate-500 font-bold">Required for verification</span>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-500 text-center">
+              You can also directly attach pictures of these to WhatsApp: <strong>97429 21881</strong>.
+            </div>
+          </div>
+
+          <!-- STEP 4: Bank Settlement Setup -->
+          <div id="vStep4" class="hidden space-y-4">
+              <div class="max-w-md">
+                <label for="vBankUpi" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Settlement UPI ID *</label>
+                <input type="text" id="vBankUpi" required autocomplete="off" placeholder="name@bank" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900">
+                <p class="text-[10px] text-slate-500 mt-1">This demo opens WhatsApp with your UPI ID. Do not enter bank account numbers here.</p>
+              </div>
+          </div>
+
+          <!-- Wizard Controls -->
+          <div class="pt-6 border-t border-slate-200 flex items-center justify-between gap-3 mt-6">
+            <button type="button" id="vBtnPrev" onclick="prevVendorStep()" class="hidden px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 flex items-center gap-1">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i> Prev
+            </button>
+            <div class="ml-auto flex items-center gap-2">
+              <button type="button" id="vBtnNext" onclick="nextVendorStep()" class="px-6 py-2.5 rounded-xl bg-brand-blue hover:bg-brand-bluedark text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md">
+                <span>Continue</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+              <button type="button" id="vBtnSubmit" onclick="submitVendorOnboarding()" class="hidden px-6 py-2.5 rounded-xl bg-brand-gold hover:bg-brand-goldlight text-brand-bluedeep font-black text-xs flex items-center gap-1.5 shadow-md">
+                <i data-lucide="send" class="w-4 h-4"></i>
+                <span>Submit &amp; Open WhatsApp Desk</span>
+              </button>
+            </div>
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Agent Registration Modal (for B2B Portal) -->
+  <div id="agentModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 relative shadow-2xl border border-slate-200 text-left">
+      <button onclick="closeAgentRegisterModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="font-display font-extrabold text-slate-900 text-lg">B2B Agent Registration</h3>
+      <p class="text-xs text-slate-500 mb-4">Start booking with wholesale partner rates immediately.</p>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label for="agentAgencyName" class="block font-bold text-slate-600 mb-1">Travel Agency Name *</label>
+          <input type="text" id="agentAgencyName" required autocomplete="organization" placeholder="Travel agency name" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-semibold">
+        </div>
+        <div>
+          <label for="agentContactName" class="block font-bold text-slate-600 mb-1">Contact Person *</label>
+          <input type="text" id="agentContactName" required autocomplete="name" placeholder="Contact person" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-semibold">
+        </div>
+        <div>
+          <label for="agentPhone" class="block font-bold text-slate-600 mb-1">Mobile / WhatsApp *</label>
+          <input type="tel" id="agentPhone" required autocomplete="tel" inputmode="tel" pattern="[0-9+() -]{10,16}" placeholder="10-digit mobile number" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-semibold">
+        </div>
+        <button onclick="submitAgentRegistration()" class="w-full py-3 rounded-xl bg-brand-gold hover:bg-brand-goldlight text-brand-bluedeep font-black text-xs shadow-md mt-2">
+          Activate Agent Account via WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Platform Footer -->
+  <footer class="bg-brand-bluedeep text-slate-300 pt-12 pb-10 border-t border-brand-bluedark text-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-slate-800">
+        
+        <div class="space-y-3">
+          <img 
+            src="Gemini_Generated_Image_z8fcsez8fcsez8fc.png" 
+            alt="Namma Uru Cab" 
+            class="h-14 w-auto bg-white/95 p-1 rounded-xl object-contain"
+            onerror="this.onerror=null; this.parentElement.innerHTML = getInlineSvgLogo();"
+          />
+          <p class="text-slate-400 text-xs leading-relaxed">
+            Namma Uru Cab unites retail travelers, B2B tour operators, and verified commercial yellow-board drivers under one seamless network.
+          </p>
+          <p class="text-brand-goldlight font-extrabold uppercase tracking-widest text-[10px]">CITY VIBES, ZERO STRESS</p>
+        </div>
+
+        <div>
+          <h4 class="text-white font-bold uppercase tracking-wider text-xs mb-3">Customer Support</h4>
+          <ul class="space-y-1.5 text-slate-300 text-xs">
+            <li><a href="tel:+919994410236" class="hover:text-white flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3 text-brand-gold"></i> +91 99944 10236</a></li>
+            <li><a href="https://wa.me/919742921881" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3 text-emerald-400"></i> WhatsApp: 97429 21881</a></li>
+            <li><a href="mailto:support@nammaurucab.in" class="hover:text-white flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3 text-brand-gold"></i> support@nammaurucab.in</a></li>
+            <li><span class="text-slate-400">Bangalore &bull; Mysore 24x7 Corridor</span></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="text-white font-bold uppercase tracking-wider text-xs mb-3">B2B Agent Desk</h4>
+          <ul class="space-y-1.5 text-slate-300 text-xs">
+            <li><a href="mailto:b2b@nammaurucab.in" class="hover:text-white">b2b@nammaurucab.in</a></li>
+            <li>Wholesale Net Per-KM Contracts</li>
+            <li>Zero-Branding Client Vouchers</li>
+            <li>Dedicated Dispatch Coordinator</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="text-white font-bold uppercase tracking-wider text-xs mb-3">Driver Onboarding</h4>
+          <ul class="space-y-1.5 text-slate-300 text-xs">
+            <li><a href="mailto:vendor@nammaurucab.in" class="hover:text-white">vendor@nammaurucab.in</a></li>
+            <li>Daily Direct UPI Settlements</li>
+            <li>Zero Deposit &bull; No Security Fee</li>
+            <li>Return Fare Pairing Guarantee</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-[11px] gap-2">
+        <p>&copy; 2026 Namma Uru Cab. All Rights Reserved.</p>
+        <div class="flex items-center gap-3">
+          <button onclick="switchPortal('customer')" class="hover:text-white">Customer App</button>
+          <span>&bull;</span>
+          <button onclick="switchPortal('b2b')" class="hover:text-white">B2B Network</button>
+          <span>&bull;</span>
+          <button onclick="switchPortal('vendor')" class="hover:text-white">Driver Portal</button>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile Bottom Sticky Quick-Action Bar -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-3 py-2 shadow-2xl flex items-center gap-2">
+    <a href="tel:+919994410236" class="flex-1 py-2.5 rounded-xl bg-brand-blue text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
+      <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+      <span>Call Desk</span>
+    </a>
+    <a href="https://wa.me/919742921881?text=Hi%20Namma%20Uru%20Cab,%20I%20want%20to%20book%20a%20ride" target="_blank" rel="noopener noreferrer"
+       class="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
+      <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+      <span>WhatsApp Booking</span>
+    </a>
+  </div>
+
+  <script>
+    // State management
+    let activePortal = 'customer';
+    let customerTripType = 'oneway';
+    let customerSelectedVehicle = 'sedan';
+    let vendorCurrentStep = 1;
+    let vendorCategory = 'single';
+
+    // Pricing Matrix
+    const VEHICLE_RATES = {
+      hatchback: { perKm: 11, minKm: 130, beta: 350, name: 'Hatchback (WagonR)' },
+      sedan: { perKm: 13, minKm: 140, beta: 400, name: 'Sedan (Dzire / Etios)' },
+      suv: { perKm: 17, minKm: 150, beta: 450, name: 'SUV (Ertiga / XL6)' },
+      crysta: { perKm: 21, minKm: 150, beta: 500, name: 'Innova Crysta Luxury' }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set default date to today
+      const dateEl = document.getElementById('custDate');
+      if (dateEl) {
+        const now = new Date();
+        const today = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0')
+        ].join('-');
+        dateEl.min = today;
+        dateEl.value = today;
+      }
+
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      calculateCustomerFare();
+      calculateB2bMargin();
+    });
+
+    // Inline SVG fallback logo generator in case image fails to load
+    function getInlineSvgLogo() {
+      return `
+        <div class="flex items-center gap-2">
+          <svg class="h-12 w-12 text-brand-gold" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="16" fill="#06162B"/>
+            <path d="M50 20L20 40V80H80V40L50 20Z" fill="#104C8C"/>
+            <circle cx="50" cy="40" r="12" fill="#D09628"/>
+            <rect x="35" y="60" width="30" height="16" rx="4" fill="#F59E0B"/>
+            <circle cx="42" cy="76" r="3.5" fill="#111827"/>
+            <circle cx="58" cy="76" r="3.5" fill="#111827"/>
+          </svg>
+          <div>
+            <div class="text-xs font-black text-brand-blue uppercase">Namma Uru Cab</div>
+            <div class="text-[9px] text-brand-golddark font-bold uppercase tracking-widest">CITY VIBES, ZERO STRESS</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Portal Switcher Function
+    function switchPortal(portalId) {
+      activePortal = portalId;
+
+      // Hide all portal sections
+      document.querySelectorAll('.portal-section').forEach(el => el.classList.add('hidden'));
+
+      // Show selected portal
+      if (portalId === 'customer') {
+        document.getElementById('portalCustomer').classList.remove('hidden');
+      } else if (portalId === 'b2b') {
+        document.getElementById('portalB2b').classList.remove('hidden');
+      } else if (portalId === 'vendor') {
+        document.getElementById('portalVendor').classList.remove('hidden');
+      }
+
+      // Update Desktop Tabs
+      const tabs = [
+        { id: 'customer', btn: 'tabNavCustomer', mob: 'tabNavCustomerMob' },
+        { id: 'b2b', btn: 'tabNavB2b', mob: 'tabNavB2bMob' },
+        { id: 'vendor', btn: 'tabNavVendor', mob: 'tabNavVendorMob' }
+      ];
+
+      tabs.forEach(t => {
+        const dBtn = document.getElementById(t.btn);
+        const mBtn = document.getElementById(t.mob);
+
+        if (t.id === portalId) {
+          dBtn.className = "portal-tab active px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5";
+          mBtn.className = "flex-1 py-1.5 text-center text-[11px] font-bold rounded-lg bg-brand-blue text-white shadow-sm";
+        } else {
+          dBtn.className = "portal-tab px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-brand-blue transition-all flex items-center gap-1.5";
+          mBtn.className = "flex-1 py-1.5 text-center text-[11px] font-bold rounded-lg text-slate-600 hover:bg-slate-100";
+        }
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ==========================================
+    // Customer Portal Functions
+    // ==========================================
+    function setCustTripType(type) {
+      customerTripType = type;
+      const btns = ['oneway', 'round', 'hourly', 'airport'];
+
+      btns.forEach(b => {
+        const btn = document.getElementById(`tripBtn${b.charAt(0).toUpperCase() + b.slice(1)}`);
+        if (b === type) {
+          btn.className = "trip-type-btn py-2 px-3 rounded-xl bg-brand-blue text-white shadow-sm flex items-center gap-1.5 whitespace-nowrap";
+        } else {
+          btn.className = "trip-type-btn py-2 px-3 rounded-xl hover:bg-slate-100 flex items-center gap-1.5 whitespace-nowrap text-slate-600";
+        }
+      });
+
+      const dropBox = document.getElementById('dropContainer');
+      const pkgBox = document.getElementById('packageContainer');
+
+      if (type === 'hourly') {
+        dropBox.classList.add('hidden');
+        pkgBox.classList.remove('hidden');
+      } else {
+        dropBox.classList.remove('hidden');
+        pkgBox.classList.add('hidden');
+      }
+
+      if (type === 'airport') {
+        document.getElementById('custDrop').value = "Kempegowda Int'l Airport (BLR)";
+      }
+
+      calculateCustomerFare();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function selectCustVehicle(vKey) {
+      customerSelectedVehicle = vKey;
+      ['hatchback', 'sedan', 'suv', 'crysta'].forEach(k => {
+        const el = document.getElementById(`vbtn-${k}`);
+        if (k === vKey) {
+          el.className = "veh-select-btn p-2 rounded-xl border-2 border-brand-blue bg-blue-50/60 text-left transition-all";
+        } else {
+          el.className = "veh-select-btn p-2 rounded-xl border border-slate-200 bg-slate-50 text-left transition-all";
+        }
+      });
+      calculateCustomerFare();
+    }
+
+    function prefillRoute(pickup, drop, tripType) {
+      document.getElementById('custPickup').value = pickup;
+      document.getElementById('custDrop').value = drop;
+      setCustTripType(tripType);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function calculateCustomerFare() {
+      const v = VEHICLE_RATES[customerSelectedVehicle];
+      let distanceKm = 150; // standard Bangalore-Mysore baseline
+      let fare = 0;
+      let breakdown = "";
+
+      if (customerTripType === 'oneway') {
+        distanceKm = 150;
+        fare = (distanceKm * v.perKm) + v.beta;
+        breakdown = `${distanceKm} KM @ ₹${v.perKm}/km + ₹${v.beta} Driver Allowance`;
+      } else if (customerTripType === 'round') {
+        distanceKm = 300;
+        fare = (distanceKm * v.perKm) + (v.beta * 2);
+        breakdown = `${distanceKm} KM round @ ₹${v.perKm}/km + ₹${v.beta * 2} 2-day Driver Allowance`;
+      } else if (customerTripType === 'hourly') {
+        const pkg = document.getElementById('custPackage').value;
+        if (pkg === '4hr40km') {
+          fare = v.perKm === 11 ? 1299 : (v.perKm === 13 ? 1499 : (v.perKm === 17 ? 1999 : 2599));
+          breakdown = "4 Hours / 40 KM Local Sightseeing Package";
+        } else if (pkg === '8hr80km') {
+          fare = v.perKm === 11 ? 2199 : (v.perKm === 13 ? 2499 : (v.perKm === 17 ? 3299 : 4299));
+          breakdown = "8 Hours / 80 KM Full Day City Package";
+        } else {
+          fare = v.perKm === 11 ? 2999 : (v.perKm === 13 ? 3499 : (v.perKm === 17 ? 4499 : 5699));
+          breakdown = "12 Hours / 120 KM Extended Travel Package";
+        }
+      } else if (customerTripType === 'airport') {
+        fare = v.perKm === 11 ? 1199 : (v.perKm === 13 ? 1399 : (v.perKm === 17 ? 1899 : 2499));
+        breakdown = "Fixed Flat Airport Transfer Rate (Doorstep Pickup)";
+      }
+
+      document.getElementById('custFareDisplay').textContent = `₹${fare.toLocaleString('en-IN')}`;
+      document.getElementById('custFareBreakdown').textContent = breakdown;
+      return fare;
+    }
+
+    function buildWhatsAppUrl(message) {
+      const url = new URL('https://wa.me/919742921881');
+      url.searchParams.set('text', message);
+      return url.toString();
+    }
+
+    function openWhatsAppMessage(message) {
+      window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
+    }
+
+    function bookViaWhatsApp() {
+      const pickupEl = document.getElementById('custPickup');
+      const dropEl = document.getElementById('custDrop');
+      const dateEl = document.getElementById('custDate');
+      const timeEl = document.getElementById('custTime');
+      if (!pickupEl.reportValidity() || (customerTripType !== 'hourly' && !dropEl.reportValidity()) ||
+          !dateEl.reportValidity() || !timeEl.reportValidity()) return;
+
+      const pickup = pickupEl.value.trim();
+      const drop = customerTripType === 'hourly' ? 'Local hourly rental' : dropEl.value.trim();
+      const date = dateEl.value;
+      const time = timeEl.value;
+      const v = VEHICLE_RATES[customerSelectedVehicle].name;
+      const fare = calculateCustomerFare();
+      const bookingId = `NUC-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      const message = `*NAMMA URU CAB - RIDE BOOKING REQUEST*
+*Booking Ref:* ${bookingId}
+----------------------------------------
+*Trip Type:* ${customerTripType.toUpperCase()}
+*From:* ${pickup}
+*To:* ${drop}
+*Date:* ${date} at ${time}
+*Vehicle:* ${v}
+*Estimated Fare:* ₹${fare.toLocaleString('en-IN')}
+----------------------------------------
+This is a fare estimate, not a confirmed booking. Please confirm availability.`;
+
+      openWhatsAppMessage(message);
+    }
+
+    function openQuickBookModal() {
+      switchPortal('customer');
+      window.scrollTo({ top: 200, behavior: 'smooth' });
+    }
+
+    // ==========================================
+    // B2B Agent Portal Functions
+    // ==========================================
+    function calculateB2bMargin() {
+      const vehCat = document.getElementById('b2bVehCat').value;
+      const km = parseInt(document.getElementById('b2bTripType').value, 10);
+      const markup = parseInt(document.getElementById('b2bMarkupSlider').value, 10);
+      
+      const v = VEHICLE_RATES[vehCat];
+      const netCost = (km * v.perKm) + v.beta;
+      const clientPrice = netCost + markup;
+
+      document.getElementById('b2bMarkupDisplay').textContent = `+₹${markup.toLocaleString('en-IN')} Margin`;
+      document.getElementById('b2bNetCost').textContent = `₹${netCost.toLocaleString('en-IN')}`;
+      document.getElementById('b2bProfit').textContent = `₹${markup.toLocaleString('en-IN')}`;
+      document.getElementById('b2bClientPrice').textContent = `₹${clientPrice.toLocaleString('en-IN')}`;
+
+      // Live update voucher preview
+      document.getElementById('voucherVeh').textContent = `${v.name} (AC Commercial)`;
+      document.getElementById('voucherAmount').textContent = `₹${clientPrice.toLocaleString('en-IN')}`;
+      document.getElementById('voucherRoute').textContent = `Karnataka Corridor (${km} KM duty)`;
+
+      return { netCost, profit: markup, clientPrice };
+    }
+
+    function updateWhiteLabelVoucherPreview() {
+      calculateB2bMargin();
+      document.getElementById('voucherRef').textContent = `NUC-B2B-${Math.floor(1000 + Math.random() * 9000)}`;
+      alert("White-Label Voucher Updated! You can now print or save it as PDF.");
+    }
+
+    function dispatchB2bOrder() {
+      const margin = calculateB2bMargin();
+      const vehCat = document.getElementById('b2bVehCat').value;
+      const v = VEHICLE_RATES[vehCat].name;
+
+      const message = `*B2B AGENT TRIP DISPATCH - NAMMA URU CAB*
+----------------------------------------
+*Agent Wholesale Order:*
+*Vehicle:* ${v}
+*Wholesale Net Rate:* ₹${margin.netCost.toLocaleString('en-IN')}
+*Agent Margin:* ₹${margin.profit.toLocaleString('en-IN')}
+*Client Invoice Total:* ₹${margin.clientPrice.toLocaleString('en-IN')}
+----------------------------------------
+Please confirm vehicle availability and assignment.`;
+
+      openWhatsAppMessage(message);
+    }
+
+    function openAgentRegisterModal() {
+      document.getElementById('agentModal').classList.remove('hidden');
+    }
+
+    function closeAgentRegisterModal() {
+      document.getElementById('agentModal').classList.add('hidden');
+    }
+
+    function submitAgentRegistration() {
+      const agencyEl = document.getElementById('agentAgencyName');
+      const contactEl = document.getElementById('agentContactName');
+      const phoneEl = document.getElementById('agentPhone');
+      if (!agencyEl.reportValidity() || !contactEl.reportValidity() || !phoneEl.reportValidity()) return;
+
+      const msg = `*NEW B2B TRAVEL AGENT REGISTRATION*
+*Agency Name:* ${agencyEl.value.trim()}
+*Contact Person:* ${contactEl.value.trim()}
+*Phone:* ${phoneEl.value.trim()}
+I want to partner with Namma Uru Cab for B2B wholesale rates.`;
+
+      closeAgentRegisterModal();
+      openWhatsAppMessage(msg);
+    }
+
+    // ==========================================
+    // Driver / Vendor Portal Functions
+    // ==========================================
+    function setVendorCategory(type) {
+      vendorCategory = type;
+      const sBtn = document.getElementById('vendorPartnerSingle');
+      const fBtn = document.getElementById('vendorPartnerFleet');
+
+      if (type === 'single') {
+        sBtn.className = "flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-brand-blue text-white shadow-sm transition-all";
+        fBtn.className = "flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100 transition-all";
+      } else {
+        fBtn.className = "flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-brand-blue text-white shadow-sm transition-all";
+        sBtn.className = "flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-slate-600 hover:bg-slate-100 transition-all";
+      }
+    }
+
+    function showVendorStep(step) {
+      vendorCurrentStep = step;
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`vStep${i}`).classList.toggle('hidden', i !== step);
+      }
+
+      // Progress bar & dots
+      const widths = ['0%', '33%', '66%', '100%'];
+      document.getElementById('vStepProgressBar').style.width = widths[step - 1];
+
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`vDot${i}`);
+        if (i < step) {
+          dot.className = "w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shadow-md";
+          dot.innerHTML = "&#10003;";
+        } else if (i === step) {
+          dot.className = "w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center text-xs font-bold shadow-md";
+          dot.innerHTML = `${i}`;
+        } else {
+          dot.className = "w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold";
+          dot.innerHTML = `${i}`;
+        }
+      }
+
+      const prevBtn = document.getElementById('vBtnPrev');
+      const nextBtn = document.getElementById('vBtnNext');
+      const submitBtn = document.getElementById('vBtnSubmit');
+
+      prevBtn.classList.toggle('hidden', step === 1);
+      nextBtn.classList.toggle('hidden', step === 4);
+      submitBtn.classList.toggle('hidden', step !== 4);
+    }
+
+    function nextVendorStep() {
+      const step = document.getElementById(`vStep${vendorCurrentStep}`);
+      const requiredFields = step.querySelectorAll('input[required], select[required]');
+      for (const field of requiredFields) {
+        if (!field.reportValidity()) return;
+      }
+      if (vendorCurrentStep < 4) showVendorStep(vendorCurrentStep + 1);
+    }
+
+    function prevVendorStep() {
+      if (vendorCurrentStep > 1) showVendorStep(vendorCurrentStep - 1);
+    }
+
+    function simulateVendorOtp() {
+      const btn = document.getElementById('vOtpBtn');
+      btn.disabled = true;
+      btn.textContent = "Demo only...";
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = "OTP demo complete";
+        btn.className = "px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs whitespace-nowrap";
+        const status = document.getElementById('vOtpDone');
+        status.textContent = "Demo only — no SMS was sent or verified";
+        status.classList.remove('hidden');
+      }, 600);
+    }
+
+    function submitVendorOnboarding() {
+      const step = document.getElementById('vStep4');
+      for (const field of step.querySelectorAll('input[required], select[required]')) {
+        if (!field.reportValidity()) return;
+      }
+      const name = document.getElementById('vDriverName').value;
+      const city = document.getElementById('vDriverCity').value;
+      const phone = document.getElementById('vDriverPhone').value;
+      const veh = document.getElementById('vVehModel').value;
+      const plate = document.getElementById('vVehPlate').value;
+      const upi = document.getElementById('vBankUpi').value;
+      const partnerId = `NUC-DRV-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const message = `*DRIVER & VENDOR ONBOARDING - NAMMA URU CAB*
+*Partner ID:* ${partnerId}
+----------------------------------------
+*Partner Type:* ${vendorCategory === 'single' ? 'Driver cum Owner' : 'Fleet Operator'}
+*Name:* ${name}
+*Base City:* ${city}
+*Phone:* ${phone}
+*Vehicle:* ${veh} (${plate})
+*Daily Settlement UPI:* ${upi}
+----------------------------------------
+Please share DL, RC, commercial insurance and permit documents for verification.`;
+
+      openWhatsAppMessage(message);
+    }
+
+    // ==========================================
+    // Real-Time Automated Self-Test Diagnostics
+    // ==========================================
+    function setDiagnosticResult(element, passed, detail) {
+      element.className = `font-bold ${passed ? 'text-emerald-400' : 'text-rose-400'} flex items-center gap-1 mt-1`;
+      element.innerHTML = `<i data-lucide="${passed ? 'check-circle' : 'x-circle'}" class="w-3 h-3"></i> ${passed ? 'Passed' : 'Failed'} (${detail})`;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function toggleDiagnosticsDrawer() {
+      document.getElementById('diagnosticsDrawer').classList.toggle('hidden');
+    }
+
+    function runLiveDiagnostics() {
+      const drawer = document.getElementById('diagnosticsDrawer');
+      drawer.classList.remove('hidden');
+
+      const sFare = document.getElementById('testStatusFare');
+      const sWa = document.getElementById('testStatusWa');
+      const sB2b = document.getElementById('testStatusB2b');
+      const sDriver = document.getElementById('testStatusDriver');
+      const sVoucher = document.getElementById('testStatusVoucher');
+
+      // Reset
+      [sFare, sWa, sB2b, sDriver, sVoucher].forEach(el => {
+        el.className = "font-bold text-amber-400 flex items-center gap-1 mt-1";
+        el.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Testing...`;
+      });
+      if (window.lucide) window.lucide.createIcons();
+
+      // Test 1: Customer Fare engine test
+      setTimeout(() => {
+        const testFare = calculateCustomerFare();
+        setDiagnosticResult(sFare, Number.isFinite(testFare) && testFare > 0, `fare ₹${testFare.toLocaleString('en-IN')}`);
+      }, 400);
+
+      // Test 2: WhatsApp URL encoding
+      setTimeout(() => {
+        const sample = 'Test ₹100 & pickup';
+        const url = new URL(buildWhatsAppUrl(sample));
+        setDiagnosticResult(sWa, url.hostname === 'wa.me' && url.pathname === '/919742921881' && url.searchParams.get('text') === sample, 'message encoded');
+      }, 700);
+
+      // Test 3: B2B Margin Engine
+      setTimeout(() => {
+        const m = calculateB2bMargin();
+        const expectedMarkup = Number(document.getElementById('b2bMarkupSlider').value);
+        setDiagnosticResult(sB2b, Number.isFinite(m.netCost) && m.profit === expectedMarkup && m.clientPrice === m.netCost + m.profit, `margin ₹${m.profit.toLocaleString('en-IN')}`);
+      }, 1000);
+
+      // Test 4: Driver Step Wizard Validation
+      setTimeout(() => {
+        const complete = typeof showVendorStep === 'function' &&
+          [1, 2, 3, 4].every(step => document.getElementById(`vStep${step}`));
+        setDiagnosticResult(sDriver, complete, '4-step wizard available');
+      }, 1300);
+
+      // Test 5: White-label Voucher Output
+      setTimeout(() => {
+        const vTitle = document.getElementById('voucherAgencyTitle').textContent;
+        const estimateLabel = document.querySelector('#printableVoucherArea .text-amber-800')?.textContent;
+        setDiagnosticResult(sVoucher, Boolean(vTitle && !vTitle.includes('Namma Uru') && estimateLabel === 'ESTIMATE ONLY'), 'unbranded estimate');
+      }, 1600);
+    }
+  </script>
+</body>
+</html>
