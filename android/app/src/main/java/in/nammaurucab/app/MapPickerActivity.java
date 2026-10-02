@@ -215,8 +215,15 @@ public final class MapPickerActivity extends Activity {
 
     private void configureMap(Bundle savedInstanceState) {
         GeoPoint initialPosition = BENGALURU;
+        if (savedInstanceState != null && savedInstanceState.containsKey("map_latitude")
+                && savedInstanceState.containsKey("map_longitude")) {
+            initialPosition = new GeoPoint(
+                    savedInstanceState.getDouble("map_latitude"),
+                    savedInstanceState.getDouble("map_longitude")
+            );
+        }
         String currentValue = getIntent().getStringExtra("current_value");
-        if (currentValue != null && !currentValue.trim().isEmpty()) {
+        if (savedInstanceState == null && currentValue != null && !currentValue.trim().isEmpty()) {
             String normalized = currentValue.toLowerCase(Locale.ROOT);
             if (normalized.contains("mysore") || normalized.contains("mysuru")) {
                 initialPosition = new GeoPoint(12.2958, 76.6394);
@@ -224,7 +231,6 @@ public final class MapPickerActivity extends Activity {
                 initialPosition = new GeoPoint(13.1986, 77.7066);
             }
         }
-        mapView.onCreate(savedInstanceState);
         mapView.getController().setZoom(13.0);
         mapView.getController().setCenter(initialPosition);
         mapView.setMapListener(new MapListener() {
@@ -421,7 +427,11 @@ public final class MapPickerActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (mapView != null) {
-            mapView.onSaveInstanceState(outState);
+            GeoPoint center = mapView.getMapCenter() instanceof GeoPoint
+                    ? (GeoPoint) mapView.getMapCenter()
+                    : BENGALURU;
+            outState.putDouble("map_latitude", center.getLatitude());
+            outState.putDouble("map_longitude", center.getLongitude());
         }
     }
 }
