@@ -10,7 +10,11 @@ The `Deploy static site to GitHub Pages` workflow publishes the repository root 
 
 ## Android app
 
-The `android` directory contains a native Android app that opens the public website, sends phone and WhatsApp links to Android, and provides an offline retry screen. Open that directory in Android Studio or build a debug APK from a terminal:
+The `android` directory contains a native Android app for the public booking site. It provides a Google Maps picker for pickup and drop-off, optional current-location centering (only when requested), phone and WhatsApp handoff, native voucher printing, and an offline retry screen. Ride availability, assignment, and payment are not connected to a server; booking requests are still sent to WhatsApp.
+
+The app uses the Google Maps SDK for Android. Create a Google Maps API key in a Google Cloud project with billing enabled and the Maps SDK for Android enabled. Restrict the key to Android app `in.nammaurucab.app` and the signing certificate fingerprints used for the debug and release builds. Add it as the `GOOGLE_MAPS_API_KEY` GitHub Actions secret; do not commit it. Debug builds can compile without this secret but the native map screen will ask for setup.
+
+Open `android` in Android Studio or build a debug APK from a terminal:
 
 ```sh
 cd android
@@ -29,11 +33,13 @@ For example, create an upload key locally with:
 keytool -genkeypair -v -keystore namma-uru-cab-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias namma-uru-cab-upload
 ```
 
-Add these repository Actions secrets, or define them in the `google-play-release` environment:
+Add these repository Actions secrets (including `GOOGLE_MAPS_API_KEY` above), or define them in the `google-play-release` environment:
 
 - `ANDROID_RELEASE_KEYSTORE_BASE64`: the upload keystore file encoded as a single-line Base64 string.
 - `ANDROID_RELEASE_KEYSTORE_PASSWORD`: the keystore password.
 - `ANDROID_RELEASE_KEY_ALIAS`: the signing key alias.
 - `ANDROID_RELEASE_KEY_PASSWORD`: the signing key password.
 
-The Android workflow builds a signed `.aab` on a `v*` tag push. It can also be run from **Actions > Build Android app > Run workflow** by setting **Build a signed Android App Bundle for Google Play** to true. Download the `namma-uru-cab-google-play-release` artifact and upload it to Play Console. Release build numbers are assigned by the workflow; a tag such as `v1.2.3` sets the app version name to `1.2.3`. No signing key is stored in the repository.
+The Android workflow builds a signed `.aab` on a `v*` tag push. It can also be run from **Actions > Build Android app > Run workflow** by setting **Build a signed Android App Bundle for Google Play** to true. Download the `namma-uru-cab-google-play-release` artifact and upload it to Play Console. New Play Store apps are published as Android App Bundles (`.aab`), not APKs. Release build numbers are assigned by the workflow; a tag such as `v1.2.3` sets the app version name to `1.2.3`. No signing key is stored in the repository.
+
+The signed bundle is prepared for manual upload. Publishing also requires an enrolled Play Console developer account, completion of the store listing, privacy/data-safety declarations and testing requirements, and acceptance of Google's Play App Signing terms. This repository does not have Play Console publishing credentials, so the workflow does not upload directly to a developer account.

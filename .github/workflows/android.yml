@@ -45,6 +45,8 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Build debug APK
         working-directory: android
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: bash gradlew assembleDebug
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -66,6 +68,7 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
       ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -86,6 +89,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+            echo "::error::Configure the GOOGLE_MAPS_API_KEY repository secret before building the Play release."
+            exit 1
+          fi
           for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_KEYSTORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Configure the $name repository secret before building a Play release."

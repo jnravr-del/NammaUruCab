@@ -26,8 +26,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.net.http.SslError;
+import org.json.JSONObject;
 
 public final class MainActivity extends Activity {
+    private static final int LOCATION_PICKER_REQUEST = 43;
     private static final String HOME_URL = "https://jnravr-del.github.io/NammaUruCab/";
     private static final String SITE_HOST = "jnravr-del.github.io";
     private static final int BRAND_NAVY = Color.rgb(6, 22, 43);
@@ -110,6 +112,28 @@ public final class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 progressBar.setVisibility(View.GONE);
+                if (isTrustedSite(url)) {
+                    view.evaluateJavascript(
+                            "(function(){"
+                                    + "var fields=[['custPickup','pickup'],['custDrop','drop']];"
+                                    + "fields.forEach(function(item){"
+                                    + "var input=document.getElementById(item[0]);"
+                                    + "if(!input||document.getElementById(item[0]+'MapButton'))return;"
+                                    + "var button=document.createElement('button');"
+                                    + "button.id=item[0]+'MapButton';"
+                                    + "button.type='button';"
+                                    + "button.textContent='Choose on Google Maps';"
+                                    + "button.setAttribute('aria-label','Choose '+item[1]+' location on Google Maps');"
+                                    + "button.style.cssText='display:block;margin-top:6px;padding:5px 8px;border:0;"
+                                    + "border-radius:8px;background:#eaf1f8;color:#104c8c;font-size:11px;"
+                                    + "font-weight:700;cursor:pointer';"
+                                    + "button.addEventListener('click',function(){"
+                                    + "window.NammaUruCabAndroid.openLocationPicker(item[1],input.value);"
+                                    + "});input.parentElement.appendChild(button);"
+                                    + "});})()",
+                            null
+                    );
+                }
                 view.evaluateJavascript(
                         "(function(){window.open=function(url){window.location.href=url;return null;};"
                                 + "window.print=function(){window.NammaUruCabAndroid.printVoucher();};})()",
@@ -199,6 +223,50 @@ public final class MainActivity extends Activity {
         return container;
     }
 
+    private boolean isTrustedSite(String url) {
+        Uri uri = Uri.parse(url);
+        return "https".equalsIgnoreCase(uri.getScheme())
+                && SITE_HOST.equalsIgnoreCase(uri.getHost())
+                && (uri.getPort() == -1 || uri.getPort() == 443);
+    }
+
+    private void openLocationPicker(String field, String currentValue) {
+        if (!"pickup".equals(field) && !"drop".equals(field)) {
+            return;
+        }
+        Intent intent = new Intent(this, MapPickerActivity.class);
+        intent.putExtra("field", field);
+        intent.putExtra("current_value", currentValue);
+        startActivityForResult(intent, LOCATION_PICKER_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != LOCATION_PICKER_REQUEST || resultCode != RESULT_OK || data == null) {
+            return;
+        }
+        String field = data.getStringExtra("field");
+        String inputId;
+        if ("pickup".equals(field)) {
+            inputId = "custPickup";
+        } else if ("drop".equals(field)) {
+            inputId = "custDrop";
+        } else {
+            return;
+        }
+        String address = data.getStringExtra("address");
+        if (address == null || address.trim().isEmpty()) {
+            return;
+        }
+        String script = "(function(){var input=document.getElementById("
+                + JSONObject.quote(inputId)
+                + ");if(input){input.value="
+                + JSONObject.quote(address)
+                + ";input.dispatchEvent(new Event('input',{bubbles:true}));}})()";
+        webView.evaluateJavascript(script, null);
+    }
+
     private boolean routeUrl(Uri uri) {
         String scheme = uri.getScheme();
         if (scheme == null) {
@@ -249,6 +317,14 @@ public final class MainActivity extends Activity {
     }
 
     private final class PrintBridge {
+        @JavascriptInterface
+        public void openLocationPicker(String field, String currentValue) {
+            if (!isTrustedSite(webView.getUrl())) {
+                return;
+            }
+            runOnUiThread(() -> MainActivity.this.openLocationPicker(field, currentValue));
+        }
+
         @JavascriptInterface
         public void printVoucher() {
             runOnUiThread(MainActivity.this::printVoucher);
