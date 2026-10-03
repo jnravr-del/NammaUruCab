@@ -1,6 +1,6 @@
 # Namma Uru Cab API
 
-This repository previously contained only a static GitHub Pages demo and an Android WebView shell: it had no API framework, data models, persistence, or authentication. `app.py` adds a dependency-free Python WSGI JSON API with SQLite persistence. Run it from the repository root with Python 3.10 or newer:
+This repository previously contained only a static GitHub Pages demo and an Android WebView shell: it had no API framework, data models, persistence, or authentication. `app.py` adds a Python WSGI JSON API with SQLite persistence and uses Python's standard library for local development. Run it from the repository root with Python 3.10 or newer:
 
 ```sh
 python -m api.app
@@ -8,7 +8,19 @@ python -m api.app
 
 The development server listens on `http://127.0.0.1:8080`; the SQLite database defaults to `api/nammaurucab.sqlite3`. Set `NAMMAURU_DB` to select another database file, `NAMMAURU_HOST` / `NAMMAURU_PORT` to change the bind address, and `NAMMAURU_CORS_ORIGINS` to a comma-separated origin allowlist (the default includes localhost and `https://jnravr-del.github.io`). To bootstrap the first administrator, set both `NAMMAURU_ADMIN_EMAIL` and `NAMMAURU_ADMIN_PASSWORD` before the first start. The admin password must be at least 16 characters. Existing administrator credentials are not reset when the service restarts.
 
-The built-in WSGI server is for local development only. GitHub Pages cannot host this API; production use requires a separately hosted WSGI service, a durable/private SQLite volume or a production database, HTTPS, backups, and appropriate request rate limits. The current frontend is a prototype and does not yet call these endpoints.
+The built-in WSGI server is for local development only. Production deployment uses the pinned Waitress WSGI server from `requirements.txt`. GitHub Pages cannot host this API; production use requires a separately hosted WSGI service, a durable/private SQLite volume or a production database, HTTPS, backups, and appropriate request rate limits.
+
+## Online deployment (Render)
+
+`render.yaml` defines the API service and a 1 GB persistent disk so booking records survive restarts. Render's `starter` service and persistent disk are paid resources; review current pricing before deploying. For a public booking service, a durable database and administrator bootstrap credentials must be configured.
+
+1. In Render, choose **New + > Blueprint**, connect this repository, and select `main` after the deployment changes have been merged. You can also open [Render's Blueprint deploy page](https://render.com/deploy?repo=https://github.com/jnravr-del/NammaUruCab).
+2. Set `NAMMAURU_ADMIN_EMAIL` and a unique 16–256 character `NAMMAURU_ADMIN_PASSWORD` when prompted. Keep the password private.
+3. Deploy and wait for the service health check at `https://<your-render-service>/api/v1/health`.
+4. Configure the deployed static site API URL. The repository's Pages URL is preconfigured as `https://nammaurucab-api.onrender.com/api/v1`; if Render assigns another host, change the `nammaurucab-api-url` meta tag in `index.html` to that service URL.
+5. In the Render service environment, set `NAMMAURU_CORS_ORIGINS` to the exact Pages origin `https://jnravr-del.github.io` (or your production domain), then redeploy. Do not include a URL path or trailing slash in the origin.
+
+Render installs the pinned Waitress production server; it uses Render's `PORT`, binds to `0.0.0.0`, and runs four request threads. The API is not live until a Render account provisions this service; GitHub Pages only publishes the static website. Admin sign-in is the email/password set during first deployment. Vendor accounts must add cabs and wait for administrator approval before customer search will show any results.
 
 ## API conventions
 
@@ -55,10 +67,11 @@ Booking statuses are `requested`, `awaiting_customer_confirmation`, `confirmed`,
 | `POST` | `/api/v1/admin/bookings/{booking_id}/assign` | Admin | Assign an approved `driver_id` to a customer-confirmed booking |
 | `POST` | `/api/v1/admin/bookings/{booking_id}/complete` | Admin | Complete an assigned booking |
 | `GET` | `/api/v1/admin/vendors`, `/api/v1/admin/drivers` | Admin | Review vendor/driver accounts |
+| `GET` | `/api/v1/admin/vehicles` | Admin | Review cab listings before approval |
 | `PATCH` | `/api/v1/admin/vendors/{user_id}/status`, `/api/v1/admin/drivers/{user_id}/status`, `/api/v1/admin/vehicles/{vehicle_id}/status` | Admin | Set `status` to `pending`, `approved`, `rejected`, or `suspended` |
 | `POST` | `/api/v1/contact` | Public | Persist contact request: `name`, `email`, `message`, optional `phone` |
 | `GET` | `/api/v1/admin/contact` | Admin | Review persisted contact requests |
 
 All signup passwords must be 12–256 characters. Booking intervals must be between 30 minutes and 7 days; cab search timestamps must include a timezone. Lists default to 50 records and accept `limit=1..100`. Customer email/phone are returned to administrators, and only customer name/phone to the vendor and assigned driver on a booking. There is no SMS, email, WhatsApp, payment, maps, document-upload, or external push integration: notifications are persisted per account for the authenticated UI to poll. Vendor/driver approval and dispatch are manual admin actions. Driver-to-vendor association and dispatch policy are not modeled; administrators select any approved, non-conflicting driver.
 
-There is no seeded cab inventory: vendors add vehicles and an administrator must approve them before they appear in search. The customer demo currently displays estimates and opens WhatsApp; it does not submit bookings to this API. Admin quotes are explicit whole-rupee amounts, avoiding a fabricated distance or fare calculation until routing/pricing rules exist.
+There is no seeded cab inventory: vendors add vehicles and an administrator must approve them before they appear in search. Admin quotes are explicit whole-rupee amounts, avoiding a fabricated distance or fare calculation until routing/pricing rules exist.

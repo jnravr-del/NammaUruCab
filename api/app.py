@@ -946,6 +946,18 @@ class CabApi:
                         (self._limit(query),),
                     ).fetchall()
                 return 200, [dict(row) for row in rows]
+            if path == f"{API_PREFIX}/admin/vehicles" and method == "GET":
+                self._role(user, "admin")
+                with self._connection() as db:
+                    rows = db.execute(
+                        """SELECT v.id, v.vendor_id, v.vehicle_class, v.make_model, v.registration_number,
+                                  v.seats, v.rate_per_km, v.driver_allowance, v.status, v.created_at,
+                                  p.business_name, p.base_city
+                           FROM vehicles v JOIN vendors p ON p.user_id = v.vendor_id
+                           ORDER BY v.created_at DESC LIMIT ?""",
+                        (self._limit(query),),
+                    ).fetchall()
+                return 200, [dict(row) for row in rows]
             match = re.fullmatch(re.escape(API_PREFIX) + r"/admin/(vendors|drivers|vehicles)/([0-9a-f-]{36})/status", path)
             if match and method == "PATCH":
                 self._role(user, "admin")
@@ -1065,7 +1077,7 @@ def create_app(
 
 def main() -> None:
     host = os.environ.get("NAMMAURU_HOST", "127.0.0.1")
-    port = int(os.environ.get("NAMMAURU_PORT", "8080"))
+    port = int(os.environ.get("PORT", os.environ.get("NAMMAURU_PORT", "8080")))
     app = create_app()
     with make_server(host, port, app) as server:
         print(f"Namma Uru Cab API listening on http://{host}:{port}{API_PREFIX}")
