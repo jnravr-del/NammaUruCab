@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: nammaurucab-api
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: pip install -r requirements.txt && python -m py_compile api/app.py
+    startCommand: waitress-serve --listen=0.0.0.0:$PORT --threads=4 --call api.app:create_app
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    disk:
+      name: nammaurucab-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: NAMMAURU_DB
+        value: /var/data/nammaurucab.sqlite3
+      - key: NAMMAURU_CORS_ORIGINS
+        value: https://jnravr-del.github.io
+      - key: NAMMAURU_ADMIN_EMAIL
+        sync: false
+      - key: NAMMAURU_ADMIN_PASSWORD
+        sync: false

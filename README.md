@@ -8,6 +8,10 @@ Open `index.html` in a browser to try the customer booking estimate, B2B margin 
 
 The repository also contains a Python WSGI JSON API with SQLite persistence for customer authentication, cab availability and booking, vendor/driver onboarding, admin dispatch, in-app notifications, and contact requests. It runs separately from GitHub Pages; setup, endpoint contracts, and deployment assumptions are documented in [`api/README.md`](api/README.md). Start the local development server with `python -m api.app`.
 
+The customer website is integrated with the API for live cab search, booking requests and tracking, account sign-in, vendor/driver signup, account management, contact requests, and the admin dispatch dashboard. The current GitHub Pages URL will use the configured Render API URL once that service has been provisioned. See the online deployment steps in [`api/README.md`](api/README.md); the API is not hosted by GitHub Pages itself.
+
+To provision the backend, connect the repository in [Render Blueprint deploy](https://render.com/deploy?repo=https://github.com/jnravr-del/NammaUruCab), set the private administrator credentials, and deploy the configured service. Render requires an account and a paid service with persistent storage; real bookings are not available until this backend is live.
+
 ## GitHub Pages
 
 The `Deploy static site to GitHub Pages` workflow publishes the repository root whenever changes reach `main`. Merge the website and workflow into `main`, then check the workflow run under **Actions** for the published URL. The workflow also supports manual runs from the Actions tab.
