@@ -4,6 +4,10 @@
 
 Open `index.html` in a browser to try the customer booking estimate, B2B margin calculator, and driver onboarding flow. The page is a front-end prototype: prices are estimates, OTP verification is simulated, and submissions are handed off to WhatsApp rather than stored or confirmed by a backend. Do not enter bank account numbers or other sensitive information.
 
+## Booking API
+
+The repository also contains a Python WSGI JSON API with SQLite persistence for customer authentication, cab availability and booking, vendor/driver onboarding, admin dispatch, in-app notifications, and contact requests. It runs separately from GitHub Pages; setup, endpoint contracts, and deployment assumptions are documented in [`api/README.md`](api/README.md). Start the local development server with `python -m api.app`.
+
 ## GitHub Pages
 
 The `Deploy static site to GitHub Pages` workflow publishes the repository root whenever changes reach `main`. Merge the website and workflow into `main`, then check the workflow run under **Actions** for the published URL. The workflow also supports manual runs from the Actions tab.
