@@ -17,6 +17,8 @@ services:
         value: 3.12.10
       - key: NAMMAURU_DB
         value: /var/data/nammaurucab.sqlite3
+      - key: NAMMAURU_CORS_ORIGINS
+        value: https://jnravr-del.github.io
       - key: NAMMAURU_ADMIN_EMAIL
         sync: false
       - key: NAMMAURU_ADMIN_PASSWORD

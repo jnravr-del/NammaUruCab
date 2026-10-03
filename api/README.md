@@ -18,7 +18,8 @@ The built-in WSGI server is for local development only. Production deployment us
 2. Set `NAMMAURU_ADMIN_EMAIL` and a unique 16–256 character `NAMMAURU_ADMIN_PASSWORD` when prompted. Keep the password private.
 3. Deploy and wait for the service health check at `https://<your-render-service>/api/v1/health`.
 4. Configure the deployed static site API URL. The repository's Pages URL is preconfigured as `https://nammaurucab-api.onrender.com/api/v1`; if Render assigns another host, change the `nammaurucab-api-url` meta tag in `index.html` to that service URL.
-5. In the Render service environment, set `NAMMAURU_CORS_ORIGINS` to the exact Pages origin `https://jnravr-del.github.io` (or your production domain), then redeploy. Do not include a URL path or trailing slash in the origin.
+
+The Blueprint configures CORS for the GitHub Pages origin. If you use a different website domain, change `NAMMAURU_CORS_ORIGINS` in `render.yaml` to that exact origin (no path or trailing slash) and redeploy.
 
 Render installs the pinned Waitress production server; it uses Render's `PORT`, binds to `0.0.0.0`, and runs four request threads. The API is not live until a Render account provisions this service; GitHub Pages only publishes the static website. Admin sign-in is the email/password set during first deployment. Vendor accounts must add cabs and wait for administrator approval before customer search will show any results.
 
