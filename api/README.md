@@ -10,6 +10,47 @@ The development server listens on `http://127.0.0.1:8080`; the SQLite database d
 
 The built-in WSGI server is for local development only. Production deployment uses the pinned Waitress WSGI server from `requirements.txt`. GitHub Pages cannot host this API; production use requires a separately hosted WSGI service, a durable/private SQLite volume or a production database, HTTPS, backups, and appropriate request rate limits.
 
+## Online deployment (PythonAnywhere)
+
+PythonAnywhere can host the API behind its managed WSGI server without installing Waitress. Its free Beginner plan may be suitable for a small demonstration, but has resource, outbound-network, and availability limits; review the current plan terms and do not treat it as a high-availability production service. SQLite data is stored in the account's home directory. Back it up regularly. No payment, email, SMS, or other third-party service is configured.
+
+1. Create or sign in to a PythonAnywhere account, then create a **Manual configuration** web app using a Python version supported by the account.
+2. In a PythonAnywhere Bash console, clone the public repository into your home directory:
+
+   ```sh
+   cd ~
+   git clone https://github.com/jnravr-del/NammaUruCab.git
+   ```
+
+   If outbound access to GitHub is unavailable on the selected plan, upload the repository files using the PythonAnywhere Files page instead.
+3. Open the web app's WSGI configuration file. Replace its application setup with the following, changing `USERNAME` to the PythonAnywhere account username:
+
+   ```python
+   import os
+   import sys
+
+   username = "USERNAME"
+   project = f"/home/{username}/NammaUruCab"
+   if project not in sys.path:
+       sys.path.insert(0, project)
+
+   os.environ["NAMMAURU_DB"] = f"/home/{username}/nammaurucab.sqlite3"
+   os.environ["NAMMAURU_CORS_ORIGINS"] = "https://jnravr-del.github.io"
+   os.environ["NAMMAURU_ADMIN_EMAIL"] = "your-admin-email@example.com"
+   os.environ["NAMMAURU_ADMIN_PASSWORD"] = "replace-with-a-private-unique-16+-character-password"
+
+   from api.app import create_app
+
+   application = create_app()
+   ```
+
+   Keep the admin password private and do not put it in the repository. The initial admin account is created when the database is first initialized; changing the WSGI setting later does not reset an existing admin password. The app uses SQLite from Python's standard library and does not need a separate package install.
+4. Save the WSGI file, reload the web app from the Web tab, and visit `https://USERNAME.pythonanywhere.com/api/v1/health`. Continue only when it returns JSON with `data.status` set to `ok`.
+5. Open the public website at `https://jnravr-del.github.io/NammaUruCab/`, choose **Configure booking server**, and enter `https://USERNAME.pythonanywhere.com/api/v1`. The site checks the health endpoint and stores the URL in that browser's local storage. This is a temporary per-browser setup; to make the site work automatically for every visitor, update the `nammaurucab-api-url` meta tag in `index.html` to the deployed service URL and publish the Pages update. Until then, each browser must configure its own URL.
+6. Sign in as the admin using the email and password configured in WSGI. Register vendor and driver accounts, add cabs, and approve them in the admin dashboard before testing customer search and booking.
+
+The API hostname and static site are separate services: deploying or changing one does not deploy the other. If PythonAnywhere assigns a different username/host, configure the matching HTTPS origin in `NAMMAURU_CORS_ORIGINS` and reload the API. Update the website's API URL as described above before inviting customers.
+
 ## Online deployment (Render)
 
 `render.yaml` defines the API service and a 1 GB persistent disk so booking records survive restarts. Render's `starter` service and persistent disk are paid resources; review current pricing before deploying. For a public booking service, a durable database and administrator bootstrap credentials must be configured.
