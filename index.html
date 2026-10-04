@@ -1135,6 +1135,18 @@
       window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
     }
 
+    function getMapLink(input) {
+      const latitude = Number(input.dataset.latitude);
+      const longitude = Number(input.dataset.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+          !input.dataset.latitude || !input.dataset.longitude) return '';
+      const url = new URL('https://www.openstreetmap.org/');
+      url.searchParams.set('mlat', latitude.toFixed(6));
+      url.searchParams.set('mlon', longitude.toFixed(6));
+      url.hash = `map=17/${latitude.toFixed(6)}/${longitude.toFixed(6)}`;
+      return url.toString();
+    }
+
     function bookViaWhatsApp() {
       const pickupEl = document.getElementById('custPickup');
       const dropEl = document.getElementById('custDrop');
@@ -1150,13 +1162,15 @@
       const v = VEHICLE_RATES[customerSelectedVehicle].name;
       const fare = calculateCustomerFare();
       const bookingId = `NUC-${Math.floor(10000 + Math.random() * 90000)}`;
+      const pickupMapLink = getMapLink(pickupEl);
+      const dropMapLink = customerTripType === 'hourly' ? '' : getMapLink(dropEl);
 
       const message = `*NAMMA URU CAB - RIDE BOOKING REQUEST*
 *Booking Ref:* ${bookingId}
 ----------------------------------------
 *Trip Type:* ${customerTripType.toUpperCase()}
-*From:* ${pickup}
-*To:* ${drop}
+*From:* ${pickup}${pickupMapLink ? `\nPickup map: ${pickupMapLink}` : ''}
+*To:* ${drop}${dropMapLink ? `\nDrop-off map: ${dropMapLink}` : ''}
 *Date:* ${date} at ${time}
 *Vehicle:* ${v}
 *Estimated Fare:* ₹${fare.toLocaleString('en-IN')}
