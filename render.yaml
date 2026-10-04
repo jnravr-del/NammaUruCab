@@ -23,3 +23,13 @@ services:
         sync: false
       - key: NAMMAURU_ADMIN_PASSWORD
         sync: false
+      - key: NAMMAURU_WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: NAMMAURU_WHATSAPP_APP_SECRET
+        sync: false
+      - key: NAMMAURU_WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: NAMMAURU_WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: NAMMAURU_WHATSAPP_API_VERSION
+        value: v23.0

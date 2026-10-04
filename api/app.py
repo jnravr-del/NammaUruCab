@@ -16,7 +16,9 @@ from datetime import datetime, timedelta, timezone
 from email.utils import formatdate
 from pathlib import Path
 from typing import Any, Iterator
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs
+from urllib.request import Request, urlopen
 from wsgiref.simple_server import make_server
 
 
@@ -163,8 +165,18 @@ class CabApi:
         admin_email: str | None = None,
         admin_password: str | None = None,
         allowed_origins: set[str] | None = None,
+        whatsapp_verify_token: str | None = None,
+        whatsapp_app_secret: str | None = None,
+        whatsapp_access_token: str | None = None,
+        whatsapp_phone_number_id: str | None = None,
+        whatsapp_api_version: str | None = None,
     ):
         self.database_path = str(database_path)
+        self.whatsapp_verify_token = whatsapp_verify_token or ""
+        self.whatsapp_app_secret = whatsapp_app_secret or ""
+        self.whatsapp_access_token = whatsapp_access_token or ""
+        self.whatsapp_phone_number_id = whatsapp_phone_number_id or ""
+        self.whatsapp_api_version = whatsapp_api_version or "v23.0"
         self.allowed_origins = allowed_origins or {
             "http://localhost:8000",
             "http://127.0.0.1:8000",
@@ -280,6 +292,18 @@ class CabApi:
                     email TEXT NOT NULL,
                     phone TEXT,
                     message TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+                    wa_id TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    data_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS whatsapp_inbound_messages (
+                    message_id TEXT PRIMARY KEY,
+                    wa_id TEXT NOT NULL,
+                    reply TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
                 """
@@ -497,6 +521,385 @@ class CabApi:
         if not 1 <= limit <= 100:
             raise ApiError(400, "invalid_request", "limit must be an integer from 1 to 100.")
         return limit
+
+    @staticmethod
+    def _whatsapp_digits(value: str) -> str:
+        return re.sub(r"\D", "", value)
+
+    def _whatsapp_customer(self, db: sqlite3.Connection, wa_id: str) -> sqlite3.Row | None:
+        customers = db.execute("SELECT id, phone FROM users WHERE role = 'customer'").fetchall()
+        matches = [row for row in customers if self._whatsapp_digits(row["phone"]) == wa_id]
+        if len(matches) > 1:
+            raise ApiError(
+                409,
+                "whatsapp_account_ambiguous",
+                "More than one customer account uses this WhatsApp number. Contact dispatch before booking.",
+            )
+        return matches[0] if matches else None
+
+    def _whatsapp_vehicle_options(
+        self, db: sqlite3.Connection, data: dict[str, Any]
+    ) -> list[sqlite3.Row]:
+        pickup_city = normalize_city(data["pickup_city"])
+        rows = db.execute(
+            """SELECT v.id, v.vehicle_class, v.make_model, v.seats, p.business_name
+               FROM vehicles v JOIN vendors p ON p.user_id = v.vendor_id
+               WHERE v.status = 'approved' AND p.status = 'approved' AND v.seats >= ?
+                 AND instr(replace(replace(lower(p.base_city), 'bangalore', 'bengaluru'),
+                                   'mysore', 'mysuru'), ?) > 0
+                 AND NOT EXISTS (
+                   SELECT 1 FROM bookings b WHERE b.vehicle_id = v.id
+                     AND b.status IN (?, ?, ?, ?) AND b.pickup_at < ? AND b.dropoff_at > ?
+                 )
+               ORDER BY v.rate_per_km, v.id LIMIT 5""",
+            (
+                data["passengers"],
+                pickup_city,
+                *ACTIVE_BOOKING_STATUSES,
+                data["dropoff_at"],
+                data["pickup_at"],
+            ),
+        ).fetchall()
+        return list(rows)
+
+    @staticmethod
+    def _whatsapp_booking_status(
+        db: sqlite3.Connection, customer_id: str, booking_id: str | None
+    ) -> sqlite3.Row:
+        if booking_id:
+            if not ID_RE.fullmatch(booking_id):
+                raise ApiError(400, "invalid_request", "Use the booking reference shown in your confirmation.")
+            row = db.execute(
+                "SELECT id FROM bookings WHERE id = ? AND customer_id = ?", (booking_id, customer_id)
+            ).fetchone()
+        else:
+            row = db.execute(
+                """SELECT id FROM bookings WHERE customer_id = ?
+                   ORDER BY created_at DESC LIMIT 1""",
+                (customer_id,),
+            ).fetchone()
+        if row is None:
+            raise ApiError(404, "not_found", "No booking was found for this WhatsApp number.")
+        return CabApi._booking(db, row["id"])
+
+    def _whatsapp_status_text(self, db: sqlite3.Connection, row: sqlite3.Row) -> str:
+        lines = [
+            f"Booking {row['id']}: {row['status'].replace('_', ' ')}.",
+            f"{row['pickup_city']} to {row['drop_city']} · pickup {row['pickup_at']}.",
+            f"Vehicle: {row['make_model']} ({row['vehicle_class']}) from {row['business_name']}.",
+        ]
+        if row["quoted_fare"] is not None:
+            lines.append(f"Admin-quoted fare: ₹{row['quoted_fare']}.")
+        if row["status"] == "awaiting_customer_confirmation":
+            lines.append(f"Reply CONFIRM {row['id']} to accept this booking quote.")
+        if row["driver_id"] and row["status"] == "assigned":
+            driver = db.execute(
+                """SELECT u.name, u.phone FROM users u
+                   WHERE u.id = ? AND u.role = 'driver'""",
+                (row["driver_id"],),
+            ).fetchone()
+            if driver:
+                lines.append(f"Driver: {driver['name']} · {driver['phone']}.")
+            lines.append(f"Vehicle registration: {row['registration_number']}.")
+        if row["status"] == "requested":
+            lines.append("The dispatch team has not quoted a fare yet.")
+        return "\n".join(lines)
+
+    def _whatsapp_handle_message(
+        self, db: sqlite3.Connection, wa_id: str, text: str
+    ) -> str:
+        normalized = text.strip()
+        command = normalized.casefold()
+        if command in {"help", "start", "restart", "book"}:
+            db.execute(
+                """INSERT INTO whatsapp_conversations (wa_id, state, data_json, updated_at)
+                   VALUES (?, 'pickup', '{}', ?)
+                   ON CONFLICT(wa_id) DO UPDATE SET state = 'pickup', data_json = '{}', updated_at = excluded.updated_at""",
+                (wa_id, now_iso()),
+            )
+            return "Let's request a one-way cab. What is your pickup city?"
+
+        match = re.fullmatch(r"(?:status|confirm)\s+([0-9a-fA-F-]{36})", normalized, re.IGNORECASE)
+        if command == "status" or command.startswith("status ") or command == "confirm" or command.startswith("confirm "):
+            if (command.startswith("status ") or command.startswith("confirm ")) and not match:
+                return "That booking reference is not valid. Use STATUS or CONFIRM followed by the booking reference."
+            customer = self._whatsapp_customer(db, wa_id)
+            if customer is None:
+                return "No customer account matches this WhatsApp number. Register on the Namma Uru Cab website with this same number, then message START."
+            booking_id = match.group(1).lower() if match else None
+            if command == "status" or command.startswith("status "):
+                row = self._whatsapp_booking_status(db, customer["id"], booking_id)
+                return self._whatsapp_status_text(db, row)
+            if booking_id:
+                row = self._whatsapp_booking_status(db, customer["id"], booking_id)
+            else:
+                pending_quote = db.execute(
+                    """SELECT id FROM bookings WHERE customer_id = ?
+                       AND status = 'awaiting_customer_confirmation'
+                       ORDER BY updated_at DESC LIMIT 1""",
+                    (customer["id"],),
+                ).fetchone()
+                if pending_quote is None:
+                    return "There is no fare quote awaiting confirmation. Reply STATUS to check your latest booking."
+                row = self._booking(db, pending_quote["id"])
+            if row["status"] != "awaiting_customer_confirmation" or row["quoted_fare"] is None:
+                return "There is no fare quote awaiting confirmation for that booking. Reply STATUS to check its current state."
+            timestamp = now_iso()
+            db.execute(
+                "UPDATE bookings SET status = 'confirmed', updated_at = ? WHERE id = ?",
+                (timestamp, row["id"]),
+            )
+            self._notify(db, row["vendor_id"], "booking_confirmed", f"Customer confirmed booking {row['id']} via WhatsApp.", row["id"])
+            self._notify_admins(db, "booking_confirmed", f"Customer confirmed booking {row['id']} via WhatsApp.", row["id"])
+            return (
+                f"Booking {row['id']} is confirmed at the admin-quoted fare of ₹{row['quoted_fare']}."
+            )
+
+        conversation = db.execute(
+            "SELECT state, data_json FROM whatsapp_conversations WHERE wa_id = ?", (wa_id,)
+        ).fetchone()
+        if conversation is None:
+            db.execute(
+                """INSERT INTO whatsapp_conversations (wa_id, state, data_json, updated_at)
+                   VALUES (?, 'pickup', '{}', ?)""",
+                (wa_id, now_iso()),
+            )
+            return "Welcome to Namma Uru Cab. I can request a one-way ride using approved available cabs. What is your pickup city?"
+
+        state = conversation["state"]
+        data = json.loads(conversation["data_json"])
+        if state == "pickup":
+            data["pickup_city"] = required_text({"pickup_city": normalized}, "pickup_city", 120)
+            next_state = "destination"
+            reply = "What is your destination city?"
+        elif state == "destination":
+            destination = required_text({"destination": normalized}, "destination", 120)
+            if normalize_city(destination) == normalize_city(data["pickup_city"]):
+                return "Pickup and destination must be different. Please send your destination city."
+            data["drop_city"] = destination
+            next_state = "pickup_time"
+            reply = "What is your requested pickup date and time? Send an ISO-8601 time with timezone, for example 2026-12-25T09:30+05:30."
+        elif state == "pickup_time":
+            try:
+                pickup_at = parse_datetime(normalized, "pickup_at")
+            except ApiError:
+                return "I couldn't read that time. Send an ISO-8601 date and time with timezone, for example 2026-12-25T09:30+05:30."
+            start = datetime.strptime(pickup_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            dropoff_at = (start + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if start <= datetime.now(timezone.utc) or start > datetime.now(timezone.utc) + timedelta(days=7):
+                return "Pickup must be in the future and within the next 7 days. Please send another ISO-8601 pickup time."
+            data["pickup_at"] = pickup_at
+            data["dropoff_at"] = dropoff_at
+            next_state = "passengers"
+            reply = "How many passengers are travelling? WhatsApp booking currently supports 1–16 passengers and one-way trips."
+        elif state == "passengers":
+            try:
+                passengers = int(normalized)
+            except ValueError:
+                return "Please reply with the number of passengers (1–16)."
+            if not 1 <= passengers <= 16:
+                return "Please reply with a number of passengers from 1 to 16."
+            data["passengers"] = passengers
+            customer = self._whatsapp_customer(db, wa_id)
+            if customer is None:
+                next_state = "awaiting_account"
+                reply = "Your ride details are saved for this chat, but a booking requires a customer account. Register on the Namma Uru Cab website using this same WhatsApp phone number, then send any message here."
+            else:
+                options = self._whatsapp_vehicle_options(db, data)
+                if not options:
+                    next_state = "pickup"
+                    data = {}
+                    reply = "There are no approved cabs available for that city, time, and passenger count. Send another pickup city to try again."
+                else:
+                    data["options"] = [row["id"] for row in options]
+                    next_state = "vehicle"
+                    choices = [
+                        f"{index}. {row['make_model']} ({row['vehicle_class']}, {row['seats']} seats) — {row['business_name']}"
+                        for index, row in enumerate(options, 1)
+                    ]
+                    reply = "Available cabs (fare is quoted by dispatch after your request):\n" + "\n".join(choices) + "\nReply with the option number."
+        elif state == "awaiting_account":
+            customer = self._whatsapp_customer(db, wa_id)
+            if customer is None:
+                return "I still can't find a customer account using this WhatsApp number. Register with the same number, then message again."
+            options = self._whatsapp_vehicle_options(db, data)
+            if not options:
+                next_state = "pickup"
+                data = {}
+                reply = "There are no approved cabs available for those details. Send another pickup city to try again."
+            else:
+                data["options"] = [row["id"] for row in options]
+                next_state = "vehicle"
+                choices = [
+                    f"{index}. {row['make_model']} ({row['vehicle_class']}, {row['seats']} seats) — {row['business_name']}"
+                    for index, row in enumerate(options, 1)
+                ]
+                reply = "Available cabs (fare is quoted by dispatch after your request):\n" + "\n".join(choices) + "\nReply with the option number."
+        elif state == "vehicle":
+            try:
+                choice = int(normalized)
+            except ValueError:
+                return "Reply with the number of one of the available cab options, or START to begin again."
+            options = data.get("options", [])
+            if not 1 <= choice <= len(options):
+                return "That option is not in the available list. Reply with a listed option number, or START to begin again."
+            customer = self._whatsapp_customer(db, wa_id)
+            if customer is None:
+                return "Your customer account could not be matched to this WhatsApp number. Register with this same number and send START."
+            vehicle = self._vehicle(db, options[choice - 1])
+            if (
+                vehicle["status"] != "approved"
+                or vehicle["vendor_status"] != "approved"
+                or vehicle["seats"] < data["passengers"]
+                or not self._is_available(db, vehicle["id"], data["pickup_at"], data["dropoff_at"])
+            ):
+                return "That cab is no longer available. Send START to search again."
+            booking_id, created = new_id(), now_iso()
+            db.execute(
+                """INSERT INTO bookings
+                   (id, customer_id, vehicle_id, trip_type, pickup_city, drop_city, pickup_at, dropoff_at,
+                    passengers, notes, status, created_at, updated_at)
+                   VALUES (?, ?, ?, 'oneway', ?, ?, ?, ?, ?, 'Requested via WhatsApp', 'requested', ?, ?)""",
+                (
+                    booking_id, customer["id"], vehicle["id"], data["pickup_city"], data["drop_city"],
+                    data["pickup_at"], data["dropoff_at"], data["passengers"], created, created,
+                ),
+            )
+            self._notify_admins(db, "booking_requested", f"New WhatsApp cab booking request {booking_id}.", booking_id)
+            self._notify(db, vehicle["vendor_id"], "booking_requested", f"New WhatsApp booking request {booking_id}.", booking_id)
+            data["booking_id"] = booking_id
+            next_state = "booked"
+            reply = (
+                f"Booking request {booking_id} has been sent to dispatch. "
+                "The fare is not set yet; dispatch must provide a quote. Reply STATUS to check for a quote."
+            )
+        elif state == "booked":
+            return "Your booking request is with dispatch. Reply STATUS for its latest state or START to request another ride."
+        else:
+            next_state, data = "pickup", {}
+            reply = "Let's start a one-way ride request. What is your pickup city?"
+
+        db.execute(
+            """INSERT INTO whatsapp_conversations (wa_id, state, data_json, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(wa_id) DO UPDATE
+                 SET state = excluded.state, data_json = excluded.data_json, updated_at = excluded.updated_at""",
+            (wa_id, next_state, json.dumps(data, separators=(",", ":")), now_iso()),
+        )
+        return reply
+
+    def _send_whatsapp(self, wa_id: str, text: str) -> None:
+        if not all((self.whatsapp_access_token, self.whatsapp_phone_number_id)):
+            raise ApiError(503, "whatsapp_not_configured", "WhatsApp outbound messaging is not configured.")
+        endpoint = (
+            f"https://graph.facebook.com/{self.whatsapp_api_version}/"
+            f"{self.whatsapp_phone_number_id}/messages"
+        )
+        payload = json.dumps(
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": wa_id,
+                "type": "text",
+                "text": {"preview_url": False, "body": text},
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        request = Request(
+            endpoint,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {self.whatsapp_access_token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                if response.status < 200 or response.status >= 300:
+                    raise ApiError(502, "whatsapp_delivery_failed", "WhatsApp did not accept the outbound message.")
+        except HTTPError as exc:
+            print(f"WhatsApp Graph API returned HTTP {exc.code}.", file=sys.stderr)
+            raise ApiError(502, "whatsapp_delivery_failed", "WhatsApp did not accept the outbound message.") from exc
+        except (URLError, TimeoutError) as exc:
+            print(f"WhatsApp Graph API request failed: {exc}", file=sys.stderr)
+            raise ApiError(502, "whatsapp_delivery_failed", "WhatsApp message delivery failed.") from exc
+
+    def _whatsapp_webhook_post(self, raw: bytes) -> None:
+        if not self.whatsapp_app_secret:
+            raise ApiError(503, "whatsapp_not_configured", "WhatsApp webhook signature verification is not configured.")
+        if not self.whatsapp_access_token or not self.whatsapp_phone_number_id:
+            raise ApiError(503, "whatsapp_not_configured", "WhatsApp outbound messaging is not configured.")
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ApiError(400, "invalid_json", "Webhook body must be a JSON object.")
+        if payload.get("object") != "whatsapp_business_account":
+            raise ApiError(400, "invalid_webhook", "Webhook object must be a WhatsApp business account.")
+        entries = payload.get("entry", [])
+        if not isinstance(entries, list):
+            raise ApiError(400, "invalid_webhook", "Webhook entry must be a list.")
+        for entry in entries:
+            changes = entry.get("changes", []) if isinstance(entry, dict) else []
+            if not isinstance(changes, list):
+                continue
+            for change in changes:
+                value = change.get("value", {}) if isinstance(change, dict) else {}
+                messages = value.get("messages", []) if isinstance(value, dict) else []
+                if not isinstance(messages, list):
+                    continue
+                metadata = value.get("metadata", {})
+                if messages and (
+                    not isinstance(metadata, dict)
+                    or metadata.get("phone_number_id") != self.whatsapp_phone_number_id
+                ):
+                    raise ApiError(403, "wrong_whatsapp_number", "Webhook event belongs to a different WhatsApp phone number.")
+                for message in messages:
+                    if not isinstance(message, dict) or not isinstance(message.get("id"), str) or not message["id"]:
+                        continue
+                    wa_id = message.get("from")
+                    if not isinstance(wa_id, str) or not re.fullmatch(r"\d{7,20}", wa_id):
+                        continue
+                    if message.get("type") == "text":
+                        text_content = message.get("text", {})
+                        message_text = text_content.get("body", "") if isinstance(text_content, dict) else ""
+                    elif message.get("type") == "button":
+                        button = message.get("button", {})
+                        message_text = button.get("text", "") if isinstance(button, dict) else ""
+                    elif message.get("type") == "interactive":
+                        interactive = message.get("interactive", {})
+                        if not isinstance(interactive, dict):
+                            interactive = {}
+                        button_reply = interactive.get("button_reply", {})
+                        list_reply = interactive.get("list_reply", {})
+                        message_text = (
+                            (button_reply.get("title") if isinstance(button_reply, dict) else None)
+                            or (list_reply.get("title") if isinstance(list_reply, dict) else None)
+                            or ""
+                        )
+                    else:
+                        message_text = ""
+                    if not isinstance(message_text, str):
+                        message_text = ""
+                    with self._transaction() as db:
+                        previous = db.execute(
+                            "SELECT wa_id, reply FROM whatsapp_inbound_messages WHERE message_id = ?",
+                            (message["id"],),
+                        ).fetchone()
+                        if previous is not None:
+                            if previous["wa_id"] != wa_id:
+                                continue
+                            reply = previous["reply"]
+                        else:
+                            try:
+                                reply = self._whatsapp_handle_message(db, wa_id, message_text)
+                            except ApiError as exc:
+                                reply = exc.message
+                            db.execute(
+                                """INSERT INTO whatsapp_inbound_messages
+                                   (message_id, wa_id, reply, created_at) VALUES (?, ?, ?, ?)""",
+                                (message["id"], wa_id, reply, now_iso()),
+                            )
+                    self._send_whatsapp(wa_id, reply)
 
     def _dispatch(
         self,
@@ -1022,6 +1425,58 @@ class CabApi:
                 ("Access-Control-Max-Age", "600"),
             ])
             return self._respond(start_response, 204, None, headers)
+        path = environ.get("PATH_INFO", "")
+        if path == f"{API_PREFIX}/webhooks/whatsapp":
+            if method == "GET":
+                query = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+                mode = query.get("hub.mode", [""])[0]
+                token = query.get("hub.verify_token", [""])[0]
+                challenge = query.get("hub.challenge", [""])[0]
+                if not self.whatsapp_verify_token:
+                    error = ApiError(503, "whatsapp_not_configured", "WhatsApp webhook verification is not configured.")
+                    return self._respond(start_response, error.status, {"error": {"code": error.code, "message": error.message}}, headers)
+                if mode != "subscribe" or not hmac.compare_digest(token, self.whatsapp_verify_token):
+                    error = ApiError(403, "webhook_verification_failed", "WhatsApp webhook verification failed.")
+                    return self._respond(start_response, error.status, {"error": {"code": error.code, "message": error.message}}, headers)
+                headers[0] = ("Content-Type", "text/plain; charset=utf-8")
+                body = challenge.encode("utf-8")
+                headers.append(("Content-Length", str(len(body))))
+                start_response("200 OK", headers)
+                return [body]
+            if method != "POST":
+                error = ApiError(405, "method_not_allowed", "The HTTP method is not supported for this endpoint.")
+                return self._respond(start_response, error.status, {"error": {"code": error.code, "message": error.message}}, headers)
+            try:
+                if not self.whatsapp_app_secret:
+                    raise ApiError(503, "whatsapp_not_configured", "WhatsApp webhook signature verification is not configured.")
+                if not environ.get("CONTENT_TYPE", "").startswith("application/json"):
+                    raise ApiError(415, "unsupported_media_type", "Content-Type must be application/json.")
+                try:
+                    length = int(environ.get("CONTENT_LENGTH") or 0)
+                except ValueError as exc:
+                    raise ApiError(400, "invalid_request", "Content-Length must be a valid integer.") from exc
+                if length < 0:
+                    raise ApiError(400, "invalid_request", "Content-Length must not be negative.")
+                if length > MAX_BODY_BYTES:
+                    raise ApiError(413, "payload_too_large", "Webhook body must be at most 64 KB.")
+                raw = environ["wsgi.input"].read(length)
+                signature = environ.get("HTTP_X_HUB_SIGNATURE_256", "")
+                expected = "sha256=" + hmac.new(
+                    self.whatsapp_app_secret.encode("utf-8"), raw, hashlib.sha256
+                ).hexdigest()
+                if not hmac.compare_digest(signature, expected):
+                    raise ApiError(401, "invalid_webhook_signature", "WhatsApp webhook signature is invalid.")
+                self._whatsapp_webhook_post(raw)
+                return self._respond(start_response, 200, {"data": {"received": True}}, headers)
+            except ApiError as exc:
+                return self._respond(start_response, exc.status, {"error": {"code": exc.code, "message": exc.message}}, headers)
+            except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+                return self._respond(
+                    start_response,
+                    400,
+                    {"error": {"code": "invalid_json", "message": "Webhook body must contain valid JSON."}},
+                    headers,
+                )
         try:
             if method not in {"GET", "POST", "PATCH"}:
                 raise ApiError(405, "method_not_allowed", "HTTP method is not supported.")
@@ -1060,6 +1515,11 @@ def create_app(
     admin_email: str | None = None,
     admin_password: str | None = None,
     allowed_origins: set[str] | None = None,
+    whatsapp_verify_token: str | None = None,
+    whatsapp_app_secret: str | None = None,
+    whatsapp_access_token: str | None = None,
+    whatsapp_phone_number_id: str | None = None,
+    whatsapp_api_version: str | None = None,
 ) -> CabApi:
     path = database_path or os.environ.get(
         "NAMMAURU_DB", str(Path(__file__).resolve().parent / "nammaurucab.sqlite3")
@@ -1072,6 +1532,11 @@ def create_app(
         admin_email if admin_email is not None else os.environ.get("NAMMAURU_ADMIN_EMAIL"),
         admin_password if admin_password is not None else os.environ.get("NAMMAURU_ADMIN_PASSWORD"),
         origins,
+        whatsapp_verify_token if whatsapp_verify_token is not None else os.environ.get("NAMMAURU_WHATSAPP_VERIFY_TOKEN"),
+        whatsapp_app_secret if whatsapp_app_secret is not None else os.environ.get("NAMMAURU_WHATSAPP_APP_SECRET"),
+        whatsapp_access_token if whatsapp_access_token is not None else os.environ.get("NAMMAURU_WHATSAPP_ACCESS_TOKEN"),
+        whatsapp_phone_number_id if whatsapp_phone_number_id is not None else os.environ.get("NAMMAURU_WHATSAPP_PHONE_NUMBER_ID"),
+        whatsapp_api_version if whatsapp_api_version is not None else os.environ.get("NAMMAURU_WHATSAPP_API_VERSION"),
     )
 
 
