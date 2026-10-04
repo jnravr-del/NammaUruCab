@@ -3,6 +3,7 @@
 
   const configuredApi = document.querySelector('meta[name="nammaurucab-api-url"]')?.content || "";
   const API_ROOT = configuredApi.replace(/\/+$/, "");
+  const API_OVERRIDE_KEY = "nammaurucab.apiBaseUrl";
   const TOKEN_KEY = "nammaurucab.accessToken";
   const USER_KEY = "nammaurucab.user";
   const money = value => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -29,12 +30,13 @@
   }
 
   async function request(path, options = {}) {
-    if (!API_ROOT) throw new Error("The booking service URL is not configured.");
+    const apiRoot = localStorage.getItem(API_OVERRIDE_KEY) || API_ROOT;
+    if (!apiRoot) throw new Error("The booking service URL is not configured.");
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     let response;
     try {
-      response = await fetch(`${API_ROOT}${path}`, {
+      response = await fetch(`${apiRoot}${path}`, {
         ...options,
         headers,
         body: options.body === undefined ? undefined : JSON.stringify(options.body)
@@ -130,7 +132,8 @@
       </form>
       ${kind === "signup"
         ? `<p class="mt-3 text-xs leading-relaxed text-slate-500">Vendor and driver accounts require administrator approval before cabs can be listed or a driver can be assigned.</p>`
-        : `<button type="button" onclick="showCabAuth('signup')" class="mt-4 text-sm font-bold text-brand-blue hover:underline">New here? Create an account</button>`}`;
+        : `<button type="button" onclick="showCabAuth('signup')" class="mt-4 text-sm font-bold text-brand-blue hover:underline">New here? Create an account</button>`}
+      <button type="button" onclick="configureCabApi()" class="mt-4 block text-xs font-bold text-slate-500 underline">Configure booking server</button>`;
     document.getElementById("accountForm").addEventListener("submit", submitAccount);
     if (kind === "signup") updateSignupFields();
   }
@@ -201,7 +204,7 @@
     document.getElementById("appPaneTitle").textContent = `Welcome, ${activeUser.name}`;
     setStatus(`${activeUser.role} account · ${activeUser.email}`);
     const body = document.getElementById("appPaneBody");
-    body.innerHTML = `<div id="appNotice" class="hidden"></div><div class="mb-5 flex flex-wrap gap-2"><button type="button" onclick="refreshDashboard()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Refresh</button><button type="button" onclick="loadMyBookings()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">My bookings</button><button type="button" onclick="loadMyNotifications()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Notifications</button><button type="button" onclick="signOutCab()" class="ml-auto rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">Sign out</button></div><div id="dashboardContent" class="space-y-4"><div class="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">Loading your account...</div></div>`;
+    body.innerHTML = `<div id="appNotice" class="hidden"></div><div class="mb-5 flex flex-wrap gap-2"><button type="button" onclick="refreshDashboard()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Refresh</button><button type="button" onclick="loadMyBookings()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">My bookings</button><button type="button" onclick="loadMyNotifications()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Notifications</button><button type="button" onclick="configureCabApi()" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold">Booking server</button><button type="button" onclick="signOutCab()" class="ml-auto rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700">Sign out</button></div><div id="dashboardContent" class="space-y-4"><div class="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">Loading your account...</div></div>`;
     const content = document.getElementById("dashboardContent");
     try {
       if (activeUser.role === "vendor") {
@@ -267,8 +270,8 @@
 
   async function loadAdminDashboard() {
     const content = document.getElementById("dashboardContent");
-    const [bookings, vendors, drivers, vehicles] = await Promise.all([
-      request("/admin/bookings?limit=50"), request("/admin/vendors?limit=50"), request("/admin/drivers?limit=50"), request("/admin/vehicles?limit=50")
+    const [bookings, vendors, drivers, vehicles, messages] = await Promise.all([
+      request("/admin/bookings?limit=50"), request("/admin/vendors?limit=50"), request("/admin/drivers?limit=50"), request("/admin/vehicles?limit=50"), request("/admin/contact?limit=50")
     ]);
     const review = (items, resource, title) => `<section class="space-y-2"><h3 class="font-bold">${title}</h3>${items.length ? items.map(item => {
       const id = resource === "vehicles" ? item.id : item.user_id;
@@ -276,7 +279,7 @@
       return `<article class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3"><div><strong class="text-sm">${escapeHtml(label)}</strong><p class="text-xs text-slate-500">${escapeHtml(item.status)}${item.email ? ` · ${escapeHtml(item.email)}` : ""}${item.base_city ? ` · ${escapeHtml(item.base_city)}` : ""}</p></div><div class="flex gap-1">${["approved", "rejected", "suspended"].map(status => `<button type="button" onclick="reviewCabAccount('${resource}','${id}','${status}')" class="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold">${status}</button>`).join("")}</div></article>`;
     }).join("") : '<p class="text-sm text-slate-500">None yet.</p>'}</section>`;
     const approvedDrivers = drivers.filter(driver => driver.status === "approved");
-    content.innerHTML = `<section class="space-y-2"><h3 class="font-bold">Booking requests and dispatch</h3>${bookings.length ? bookings.map(booking => `<article class="rounded-xl border border-slate-200 p-3"><div class="flex flex-wrap justify-between gap-2"><strong class="text-sm">${escapeHtml(booking.pickup_city)} → ${escapeHtml(booking.drop_city)}</strong><span class="text-xs font-bold">${escapeHtml(booking.status)}</span></div><p class="mt-1 text-xs text-slate-600">${escapeHtml(booking.vehicle.make_model)} · ${new Date(booking.pickup_at).toLocaleString()} · ${escapeHtml(booking.customer?.name || "")} ${escapeHtml(booking.customer?.phone || "")}</p>${booking.status === "requested" ? `<div class="mt-3 flex gap-2"><input id="fare-${booking.id}" type="number" min="1" max="10000000" placeholder="Quote (₹)" class="w-32 rounded-lg border border-slate-300 px-2 py-1 text-sm"><button type="button" onclick="quoteCabBooking('${booking.id}')" class="rounded-lg bg-brand-blue px-3 py-1 text-xs font-bold text-white">Send quote</button><button type="button" onclick="adminBookingAction('${booking.id}','reject')" class="rounded-lg border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700">Reject</button></div>` : ""}${booking.status === "confirmed" ? approvedDrivers.length ? `<div class="mt-3 flex flex-wrap gap-2"><select id="driver-${booking.id}" class="rounded-lg border border-slate-300 px-2 py-1 text-sm">${approvedDrivers.map(driver => `<option value="${driver.user_id}">${escapeHtml(driver.name)} · ${escapeHtml(driver.base_city)}</option>`).join("")}</select><button type="button" onclick="assignCabDriver('${booking.id}',document.getElementById('driver-${booking.id}').value)" class="rounded-lg bg-brand-blue px-3 py-1 text-xs font-bold text-white">Assign driver</button></div>` : '<p class="mt-3 text-xs text-amber-700">No approved drivers are available.</p>' : ""}${booking.status === "assigned" ? `<button type="button" onclick="adminBookingAction('${booking.id}','complete')" class="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Complete ride</button>` : ""}</article>`).join("") : '<p class="text-sm text-slate-500">No bookings yet.</p>'}</section>${review(vendors, "vendors", "Vendor approvals")}${review(drivers, "drivers", "Driver approvals")}${review(vehicles, "vehicles", "Cab approvals")}`;
+    content.innerHTML = `<section class="space-y-2"><h3 class="font-bold">Booking requests and dispatch</h3>${bookings.length ? bookings.map(booking => `<article class="rounded-xl border border-slate-200 p-3"><div class="flex flex-wrap justify-between gap-2"><strong class="text-sm">${escapeHtml(booking.pickup_city)} → ${escapeHtml(booking.drop_city)}</strong><span class="text-xs font-bold">${escapeHtml(booking.status)}</span></div><p class="mt-1 text-xs text-slate-600">${escapeHtml(booking.vehicle.make_model)} · ${new Date(booking.pickup_at).toLocaleString()} · ${escapeHtml(booking.customer?.name || "")} ${escapeHtml(booking.customer?.phone || "")}</p>${booking.status === "requested" ? `<div class="mt-3 flex gap-2"><input id="fare-${booking.id}" type="number" min="1" max="10000000" placeholder="Quote (₹)" class="w-32 rounded-lg border border-slate-300 px-2 py-1 text-sm"><button type="button" onclick="quoteCabBooking('${booking.id}')" class="rounded-lg bg-brand-blue px-3 py-1 text-xs font-bold text-white">Send quote</button><button type="button" onclick="adminBookingAction('${booking.id}','reject')" class="rounded-lg border border-rose-200 px-3 py-1 text-xs font-bold text-rose-700">Reject</button></div>` : ""}${booking.status === "confirmed" ? approvedDrivers.length ? `<div class="mt-3 flex flex-wrap gap-2"><select id="driver-${booking.id}" class="rounded-lg border border-slate-300 px-2 py-1 text-sm">${approvedDrivers.map(driver => `<option value="${driver.user_id}">${escapeHtml(driver.name)} · ${escapeHtml(driver.base_city)}</option>`).join("")}</select><button type="button" onclick="assignCabDriver('${booking.id}',document.getElementById('driver-${booking.id}').value)" class="rounded-lg bg-brand-blue px-3 py-1 text-xs font-bold text-white">Assign driver</button></div>` : '<p class="mt-3 text-xs text-amber-700">No approved drivers are available.</p>' : ""}${booking.status === "assigned" ? `<button type="button" onclick="adminBookingAction('${booking.id}','complete')" class="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Complete ride</button>` : ""}</article>`).join("") : '<p class="text-sm text-slate-500">No bookings yet.</p>'}</section>${review(vendors, "vendors", "Vendor approvals")}${review(drivers, "drivers", "Driver approvals")}${review(vehicles, "vehicles", "Cab approvals")}<section class="space-y-2"><h3 class="font-bold">Contact messages</h3>${messages.length ? messages.map(message => `<article class="rounded-xl border border-slate-200 p-3"><strong>${escapeHtml(message.name)} · ${escapeHtml(message.email)}</strong>${message.phone ? `<p class="text-xs text-slate-600">${escapeHtml(message.phone)}</p>` : ""}<p class="mt-2 whitespace-pre-wrap text-sm">${escapeHtml(message.message)}</p><p class="mt-1 text-xs text-slate-500">${new Date(message.created_at).toLocaleString()}</p></article>`).join("") : '<p class="text-sm text-slate-500">No contact messages.</p>'}</section>`;
   }
 
   async function searchCabs() {
@@ -428,6 +431,51 @@
     document.getElementById("contactNotice").classList.add("hidden");
   }
 
+  async function configureCabApi() {
+    const current = localStorage.getItem(API_OVERRIDE_KEY) || API_ROOT;
+    const entered = window.prompt(
+      "Enter your booking API URL, for example https://yourusername.pythonanywhere.com/api/v1",
+      current || ""
+    );
+    if (!entered) return;
+    let parsed;
+    try {
+      parsed = new URL(entered.trim());
+    } catch {
+      showNotice("Enter a valid booking API URL.");
+      return;
+    }
+    try {
+      if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname)) {
+        throw new Error("The booking API must use HTTPS.");
+      }
+      if (parsed.search || parsed.hash || parsed.username || parsed.password) {
+        throw new Error("Enter only the API URL, without credentials, query parameters, or fragments.");
+      }
+      let path = parsed.pathname.replace(/\/+$/, "");
+      if (path.endsWith("/api/v1")) path = path.slice(0, -7);
+      if (path && path !== "/") throw new Error("Enter the service base URL, not an endpoint path.");
+      const apiRoot = `${parsed.origin}/api/v1`;
+      let response;
+      try {
+        response = await fetch(`${apiRoot}/health`, { headers: { Accept: "application/json" } });
+      } catch {
+        throw new Error("Could not reach that server. Check the URL and its CORS configuration.");
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.data?.status !== "ok") {
+        throw new Error("That URL did not return a healthy Namma Uru Cab API.");
+      }
+      if (apiRoot === API_ROOT) localStorage.removeItem(API_OVERRIDE_KEY);
+      else localStorage.setItem(API_OVERRIDE_KEY, apiRoot);
+      setSession(null, "");
+      showAuthForm("signin");
+      showNotice("Booking service connected. Please sign in again.", "success");
+    } catch (error) {
+      showNotice(error.message);
+    }
+  }
+
   async function signOutCab() {
     try { await request("/auth/signout", { method: "POST", body: {} }); } catch { /* Local session is cleared even if the service cannot be reached. */ }
     setSession(null, "");
@@ -453,6 +501,7 @@
   window.closeAppPane = closeAppPane;
   window.openContactPane = openContactPane;
   window.closeContactPane = closeContactPane;
+  window.configureCabApi = configureCabApi;
   window.refreshDashboard = refreshDashboard;
   window.loadMyBookings = loadMyBookings;
   window.loadMyNotifications = loadMyNotifications;
