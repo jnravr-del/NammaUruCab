@@ -21,6 +21,24 @@ The built-in WSGI server is for local development only. Production deployment us
 
 The Blueprint configures CORS for the GitHub Pages origin. If you use a different website domain, change `NAMMAURU_CORS_ORIGINS` in `render.yaml` to that exact origin (no path or trailing slash) and redeploy.
 
+## WhatsApp Cloud API
+
+The API supports Meta's WhatsApp Cloud API at `POST /api/v1/webhooks/whatsapp`. To enable it, configure these Render environment variables (or set them in the API process environment locally):
+
+| Variable | Purpose |
+| --- | --- |
+| `NAMMAURU_WHATSAPP_VERIFY_TOKEN` | Private token entered in Meta's webhook configuration and checked during subscription verification |
+| `NAMMAURU_WHATSAPP_APP_SECRET` | Meta app secret used to validate `X-Hub-Signature-256` against the exact inbound request body |
+| `NAMMAURU_WHATSAPP_ACCESS_TOKEN` | Server-side bearer token for outbound Cloud API messages |
+| `NAMMAURU_WHATSAPP_PHONE_NUMBER_ID` | Meta WhatsApp business phone-number ID used for sending messages |
+| `NAMMAURU_WHATSAPP_API_VERSION` | Graph API version; the Blueprint currently sets `v23.0`, which can be changed to a version supported by your Meta app |
+
+In Meta's WhatsApp product, set the callback URL to `https://<your-api-host>/api/v1/webhooks/whatsapp`, use the same verify token, and subscribe to the `messages` webhook field. The endpoint responds to Meta's `hub.challenge`, rejects unsigned or incorrectly signed POST requests, ignores delivery-status events, and deduplicates inbound message IDs. HTTPS is required. Secrets and access tokens must be set in the deployment's secret environment settings; do not add them to source or commit them.
+
+Customers must already have an Namma Uru Cab customer account whose phone number exactly matches their WhatsApp sender number, including country code. WhatsApp currently creates one-way booking requests, asks for pickup/destination, a timezone-qualified pickup time, and passenger count, and searches only real approved available vehicles. It reserves the requested slot for two hours because the current booking model requires a dropoff time and the conversational flow does not collect trip duration. Dispatch must still manually set the fare in the admin dashboard. Customers can send `STATUS` (or `STATUS <booking-id>`) to read the latest booking, quoted fare, vehicle, and assigned driver details; `CONFIRM <booking-id>` accepts only a pending admin quote.
+
+Payment processing is not part of the WhatsApp integration or current application. Outbound messages are replies to inbound messages only; pre-approved WhatsApp templates and proactive notifications outside Meta's customer-service window are not implemented. Subscription verification requires the verify token; signed message processing also requires the app secret, access token, and phone-number ID. Incomplete configuration returns an explicit error while the ordinary booking API remains available.
+
 Render installs the pinned Waitress production server; it uses Render's `PORT`, binds to `0.0.0.0`, and runs four request threads. The API is not live until a Render account provisions this service; GitHub Pages only publishes the static website. Admin sign-in is the email/password set during first deployment. Vendor accounts must add cabs and wait for administrator approval before customer search will show any results.
 
 ## API conventions
@@ -42,6 +60,7 @@ Booking statuses are `requested`, `awaiting_customer_confirmation`, `confirmed`,
 | Method | Route | Access | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/health` | Public | Liveness check |
+| `GET`, `POST` | `/api/v1/webhooks/whatsapp` | Meta WhatsApp Cloud API | Verify subscription; accept signed inbound messages and reply through the Cloud API when configured |
 | `POST` | `/api/v1/auth/signup` | Public | Customer signup: `name`, `email`, `phone`, `password` |
 | `POST` | `/api/v1/auth/vendor-signup` | Public | Vendor signup plus `business_name`, `partner_type` (`single` or `fleet`), `base_city`; starts pending approval |
 | `POST` | `/api/v1/auth/driver-signup` | Public | Driver signup plus `base_city`; starts pending approval |
@@ -73,6 +92,6 @@ Booking statuses are `requested`, `awaiting_customer_confirmation`, `confirmed`,
 | `POST` | `/api/v1/contact` | Public | Persist contact request: `name`, `email`, `message`, optional `phone` |
 | `GET` | `/api/v1/admin/contact` | Admin | Review persisted contact requests |
 
-All signup passwords must be 12–256 characters. Booking intervals must be between 30 minutes and 7 days; cab search timestamps must include a timezone. Lists default to 50 records and accept `limit=1..100`. Customer email/phone are returned to administrators, and only customer name/phone to the vendor and assigned driver on a booking. There is no SMS, email, WhatsApp, payment, maps, document-upload, or external push integration: notifications are persisted per account for the authenticated UI to poll. Vendor/driver approval and dispatch are manual admin actions. Driver-to-vendor association and dispatch policy are not modeled; administrators select any approved, non-conflicting driver.
+All signup passwords must be 12–256 characters. Booking intervals must be between 30 minutes and 7 days; cab search timestamps must include a timezone. Lists default to 50 records and accept `limit=1..100`. Customer email/phone are returned to administrators, and only customer name/phone to the vendor and assigned driver on a booking. Other than the optional WhatsApp Cloud API integration above, there is no SMS, email, maps, document-upload, or external push integration: notifications are persisted per account for the authenticated UI to poll. There is no payment integration. Vendor/driver approval and dispatch are manual admin actions. Driver-to-vendor association and dispatch policy are not modeled; administrators select any approved, non-conflicting driver.
 
 There is no seeded cab inventory: vendors add vehicles and an administrator must approve them before they appear in search. Admin quotes are explicit whole-rupee amounts, avoiding a fabricated distance or fare calculation until routing/pricing rules exist.
